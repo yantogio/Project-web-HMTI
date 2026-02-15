@@ -1,0 +1,46 @@
+ke lokasi projek >>> cd C:\PROJECT WEB HMTI
+ke lokasi backend >>> cd hmti-backend
+ke lokasi frontend >>> cd hmti-frontend
+
+jalanin server backend >>> pnpm run start:dev
+jalanin server frontend >>> npm run dev
+
+lihat server jalan atau tidak di web >>> localhost:3000
+lihat tampilan web nya >>> http://localhost:5173
+biar langsung ke lokasi backend >>> cd C:\PROJECT WEB HMTI\hmti-backend
+biar langsung ke lokasi frontend >>> cd C:\PROJECT WEB HMTI\hmti-frontend
+migrasi database pake prisma >>> npx prisma migrate dev --name setup_member
+buat lihat database >>> npx prisma studio
+password anggota default password123
+
+
+----
+
+
+hai Z... saya punya Projek web HMTI nih, sudah 25% proses pengerjaan... konsep nya tuh web ini dibagi menjadi 2 fungsi utama... fungsi publikasi, di mana isi nya seperti showchase profil himpunan (Himpunan Mahasiswa Teknik Informatika), biodata anggota (foto keren dengan halaman interaktif), kegiatan, event, prestasi perorangan maupun himpunan itu sendiri, dll... fungsi kedua sebagai sarana pengelolaan data Himpunan itu sendiri... seperti Anggota (ini sudah hampir jadi), keuangan, dokumentasi baik surat menyurat, desain, foto2, video2, dll... 
+
+teknologi yang digunakan :
+Frontend: Vue 3 (Composition API) + Tailwind CSS + Axios.
+
+Backend: NestJS (TypeScript).
+
+Database: SQLite dengan Prisma ORM.
+
+biar kau paham konteks ini catatan penting yang sebelumnya sudah saya catat
+
+ke lokasi projek >>> cd C:\PROJECT WEB HMTI
+ke lokasi backend >>> cd hmti-backend
+ke lokasi frontend >>> cd hmti-frontend
+
+jalanin server backend >>> pnpm run start:dev
+jalanin server frontend >>> npm run dev
+
+lihat server jalan atau tidak di web >>> localhost:3000
+lihat tampilan web nya >>> http://localhost:5173
+biar langsung ke lokasi backend >>> cd C:\PROJECT WEB HMTI\hmti-backend
+biar langsung ke lokasi frontend >>> cd C:\PROJECT WEB HMTI\hmti-frontend
+migrasi database pake prisma >>> npx prisma migrate dev --name setup_member
+buat lihat database >>> npx prisma studio
+password anggota default password123
+
+apa kau perlu beberapa file untuk saya upload atau copas keseluruhan codingan nya kemari untuk memahami lebih dalam mengenai projek ini sebelum kita lanjut mengerjakan nya??? lalu saya sudah memberikan sistem keamanan berdasarkan role akses anggota di mana sistem keamanan nya sudah ada di tahap tidak bisa dihack oleh user non admin dari console inspect (nanti forbiden 404)...
