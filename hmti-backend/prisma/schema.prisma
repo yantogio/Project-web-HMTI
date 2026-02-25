@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Member {
+  nia       String   @id
+  npm       String   @unique
+  name      String
+  angkatan  String
+  jabatan   String
+  role      String
+  status    String   @default("Aktif") // Otomatis Aktif kalau ditambah member baru
+  joinedAt  DateTime @default(now())  // Otomatis terisi waktu sekarang
+  password  String   @default("password123")
+  email     String?   // Tanda tanya (?) artinya boleh kosong (optional)
+  phone     String?   // Kita simpan sebagai string agar bisa pakai format +62 dll
+  bio       String?   // Untuk tulisan panjang
+  
+  dues Dues[] @relation("MemberDues") // Hubungan satu anggota punya banyak tagihan
+  transactions Transaction[] @relation("TransactionCreator")
+}
+
+model Transaction {
+  id          Int      @id @default(autoincrement())
+  type        String
+  amount      Int
+  category    String
+  description String
+  subCategory String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  
+  createdByNia String
+  createdBy   Member   @relation("TransactionCreator", fields: [createdByNia], references: [nia])
+  
+  // TAMBAHKAN INI: Hubungan ke Tagihan (Dues)
+  // Agar kita tahu transaksi ini membayar tagihan bulan berapa
+  duesId      Int?
+  dues        Dues?    @relation("TransactionDues", fields: [duesId], references: [id])
+}
+
+// MODEL BARU 1: TAGIHAN (DUES)
+model Dues {
+  id            Int      @id @default(autoincrement())
+  memberNia     String   // Siapa yang berutang
+  period        String   // Periode (Format: "2023-10")
+  month         Int      // Bulan (10)
+  year          Int      // Tahun (2023)
+  amountDue     Int      @default(0) // Tagihan wajib
+  amountPaid    Int      @default(0) // Sudah bayar berapa
+  status        String   @default("UNPAID") // UNPAID, PARTIAL, PAID, OVERPAID
+  creditBalance Int      @default(0) // Sisa uang (Lebih bayar) untuk bulan depan
+  dueDate       DateTime? // Jatuh tempo
+  finalDate     DateTime? // Tanggal terakhir pembayaran
+  createdAt     DateTime @default(now())
+  
+  member        Member   @relation("MemberDues", fields: [memberNia], references: [nia])
+  transactions  Transaction[] @relation("TransactionDues")
+}
+
+// MODEL BARU 2: KONFIGURASI KEUANGAN
+model FinanceConfig {
+  id        Int     @id @default(autoincrement())
+  duesAmount Int     // Nominal iuran per bulan
+  lateFee   Int     // Denda flat
+  dueDay    Int     // Tanggal jatuh tempo (misal tanggal 20)
+  finalDay  Int     // Tanggal terakhir pembayaran (misal tanggal 25)
+  isActive  Boolean @default(true) // Hanya config aktif yang digunakan
+}
