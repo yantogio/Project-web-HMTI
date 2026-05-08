@@ -10,6 +10,17 @@ export class AuthService {
     private jwtService: JwtService
   ) {}
 
+  async googleLogin(user) {
+    if (!user) {
+      return 'No user from google';
+    }
+
+    return {
+      message: 'User information from google',
+      user: user,
+    };
+  }
+
   async validateUser(nia: string, password: string): Promise<any> {
     const user = await this.prisma.member.findUnique({
       where: { nia: nia }

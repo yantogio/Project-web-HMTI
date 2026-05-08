@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -12,4 +12,17 @@ export class AuthController {
     // Jika code nyampe sini, berarti NIA & Password sudah VALID (sudah lewat validateUser)
     return this.authService.login(req.user);
   }
+
+  // Rute untuk memicu halaman login Google
+@Get('google')
+@UseGuards(AuthGuard('google'))
+async googleAuth(@Req() req) {}
+
+// Rute 'Pintu Masuk' setelah login Google sukses
+@Get('google-redirect') // <--- Inilah yang akan jadi Redirect URI
+@UseGuards(AuthGuard('google'))
+googleAuthRedirect(@Req() req) {
+  return this.authService.googleLogin(req);
 }
+}
+

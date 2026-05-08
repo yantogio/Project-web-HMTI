@@ -6,16 +6,17 @@ import { AuthController } from './auth.controller';
 import { PrismaService } from '../prisma/prisma.service';
 import { LocalStrategy } from './local.strategy';
 import { JwtStrategy } from './jwt.strategy';
+import { GoogleStrategy } from './google.strategy';
 
 @Module({
   imports: [
     PassportModule,
     JwtModule.register({
-      secret: 'HMTI_RAHASIA_KEY_JANGAN_DIBAGIKAN', // Kunci rahasia untuk bikin token
+      secret: process.env.JWT_SECRET, // Kunci rahasia untuk bikin token
       signOptions: { expiresIn: '1d' }, // Token berlaku 1 hari
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, LocalStrategy, JwtStrategy],
+  providers: [AuthService, PrismaService, LocalStrategy, JwtStrategy, GoogleStrategy],
 })
 export class AuthModule {}
