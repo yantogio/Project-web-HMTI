@@ -2,10 +2,12 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useThemeStore } from '../stores/theme'
 import { uploadDocument, getDocuments, deleteDocument } from '../api/documentApi'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 // --- 1. STATE UTAMA ---
 const docs = ref([])           // Data dari database
@@ -15,15 +17,36 @@ const isUploading = ref(false)
 const fileInput = ref(null)
 const activeTab = ref('surat')
 const searchQuery = ref('')
-const isDarkMode = ref(true)
+const isDarkMode = computed(() => themeStore.isDarkMode)
+
+// === PAGINATION STATE ===
+const currentPage = ref(1)
+const itemsPerPage = ref(20)
+const totalItems = ref(0)
+const totalPages = ref(0)
 
 // --- 2. API LOGIC ---
-const fetchDocs = async () => {
+const fetchDocs = async (page = 1) => {
   try {
-    const res = await getDocuments() // Pastikan fungsi ini ada di documentApi.js
-    docs.value = res.data
+    const res = await getDocuments(page, itemsPerPage.value)
+    
+    // Handle new pagination response format
+    if (res.data && typeof res.data === 'object' && 'data' in res.data) {
+      // New format with pagination
+      docs.value = res.data.data || []
+      currentPage.value = res.data.pagination?.page || 1
+      totalItems.value = res.data.pagination?.total || 0
+      totalPages.value = res.data.pagination?.pages || 0
+    } else if (Array.isArray(res.data)) {
+      // Old format (backward compatibility)
+      docs.value = res.data
+    } else {
+      // Fallback
+      docs.value = []
+    }
   } catch (err) {
     console.error("Gagal ambil data", err)
+    docs.value = []
   }
 }
 
@@ -73,15 +96,22 @@ const deleteDoc = async (id) => {
   }
 }
 
-const getDriveFileId = (url) => {
-  if (!url) return ''
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 
-  return (
-    url.match(/\/d\/([-\w]{25,})/)?.[1] ||
-    url.match(/[?&]id=([-\w]{25,})/)?.[1] ||
-    url.match(/[-\w]{25,}/)?.[0] ||
-    ''
-  )
+const getDriveMediaUrl = (doc) => {
+  if (!doc?.id) return doc.fileUrl
+  return `${apiBaseUrl}/documents/preview/${doc.id}`
+}
+
+const isImage = (mimeType) => mimeType?.startsWith('image/')
+const isVideo = (mimeType) => mimeType?.startsWith('video/')
+
+const selectedDoc = ref(null)
+const openPreview = (doc) => {
+  selectedDoc.value = doc
+}
+const closePreview = () => {
+  selectedDoc.value = null
 }
 
 const openFilePicker = () => {
@@ -195,7 +225,7 @@ const getPlaceholderImage = (mimeType) => {
           </div>
           <div class="flex items-center gap-4">
             <!-- Theme Toggle (sama seperti FinanceView) -->
-            <button @click="isDarkMode = !isDarkMode" class="p-2 rounded-full hover:bg-white/10 transition">
+            <button @click="themeStore.toggleTheme()" class="p-2 rounded-full hover:bg-white/10 transition">
               <span v-if="isDarkMode">☀️</span><span v-else>🌙</span>
             </button>
             <div class="hidden md:block text-right">
@@ -214,7 +244,7 @@ const getPlaceholderImage = (mimeType) => {
 
     <!-- MAIN CONTENT -->
     <main class="relative z-10 max-w-7xl mx-auto px-4 py-8">
-      <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload" accept=".pdf,.docx,.jpg,.png,.MP4" />
+      <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload" accept=".pdf,.docx,.jpg,.jpeg,.png,.MP4" />
 
       <!-- HEADER SECTION -->
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -314,7 +344,7 @@ const getPlaceholderImage = (mimeType) => {
                 </td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex justify-end gap-3">
-                    <a :href="l.fileUrl" target="_blank" class="text-emerald-400 hover:text-emerald-300 font-bold">Buka
+                    <a :href="getDriveMediaUrl(l)" target="_blank" class="text-emerald-400 hover:text-emerald-300 font-bold">Buka
                       File →</a>
                     <button v-if="authStore.user?.role === 'sekretaris'" @click="deleteDoc(l.id)"
                       class="text-red-400 hover:text-red-500">Hapus</button>
@@ -352,17 +382,35 @@ const getPlaceholderImage = (mimeType) => {
           <div v-for="m in mediaDocs" :key="m.id"
             :class="['group relative rounded-2xl overflow-hidden border transition-all hover:scale-[1.02]', themeClasses.cardGlass]">
             <div class="aspect-video w-full overflow-hidden bg-slate-800">
-              <img 
-                :src="getPlaceholderImage(m.category)" 
-                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                alt="Preview Asset"
-              >
+              <template v-if="isVideo(m.category)">
+                <video
+                  :src="getDriveMediaUrl(m, true)"
+                  class="w-full h-full object-cover"
+                  controls
+                  preload="metadata"
+                  playsinline
+                ></video>
+              </template>
+              <template v-else-if="isImage(m.category)">
+                <img
+                  :src="getDriveMediaUrl(m)"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  alt="Preview Asset"
+                />
+              </template>
+              <template v-else>
+                <img
+                  :src="getPlaceholderImage(m.category)"
+                  class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  alt="Preview Asset"
+                />
+              </template>
             </div>
             <div class="p-4">
               <p :class="['font-bold truncate', themeClasses.text]">{{ m.title }}</p>
               <p :class="['text-xs', themeClasses.textMuted]">Oleh: {{ m.uploader?.name || 'Sekretaris' }}</p>
               <div class="flex gap-2 mt-3">
-                <a :href="m.fileUrl" target="_blank"
+                <a :href="getDriveMediaUrl(m)" target="_blank"
                   class="flex-1 text-center py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-all">Lihat
                   Full</a>
                 <button v-if="authStore.user?.role === 'sekretaris'" @click="deleteDoc(m.id)"
@@ -387,17 +435,35 @@ const getPlaceholderImage = (mimeType) => {
           <div v-for="b in brandingDocs" :key="b.id"
             :class="['p-4 rounded-xl border flex flex-col items-center gap-3 group transition-all', themeClasses.cardGlass]">
             <div class="aspect-square w-full overflow-hidden bg-slate-800 rounded-lg">
-              <img 
-                :src="getPlaceholderImage(b.category)" 
-                class="w-full h-full object-cover group-hover:scale-105 transition-all"
-                alt="Preview Asset"
-              >
+              <template v-if="isVideo(b.category)">
+                <video
+                  :src="getDriveMediaUrl(b, true)"
+                  class="w-full h-full object-cover"
+                  controls
+                  preload="metadata"
+                  playsinline
+                ></video>
+              </template>
+              <template v-else-if="isImage(b.category)">
+                <img
+                  :src="getDriveMediaUrl(b)"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-all"
+                  alt="Preview Asset"
+                />
+              </template>
+              <template v-else>
+                <img
+                  :src="getPlaceholderImage(b.category)"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-all"
+                  alt="Preview Asset"
+                />
+              </template>
             </div>
             <div class="text-center w-full">
               <p :class="['font-bold text-sm truncate px-2', themeClasses.text]">{{ b.title }}</p>
             </div>
             <div class="flex flex-col w-full gap-2">
-              <a :href="b.fileUrl" target="_blank"
+              <a :href="getDriveMediaUrl(b)" target="_blank"
                 class="w-full py-2 bg-white/5 hover:bg-white/10 text-center rounded-lg text-xs font-bold transition-all border border-white/5">Download</a>
               <button v-if="authStore.user?.role === 'sekretaris'" @click="deleteDoc(b.id)"
                 class="text-[10px] text-red-400 hover:underline">Hapus Aset</button>

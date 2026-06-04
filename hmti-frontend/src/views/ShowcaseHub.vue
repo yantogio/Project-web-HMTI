@@ -2,12 +2,14 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useThemeStore } from '../stores/theme'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 // --- 1. STATE & THEME ---
-const isDarkMode = ref(true)
+const isDarkMode = computed(() => themeStore.isDarkMode)
 const activeTab = ref('prestasi') // 'prestasi', 'event', 'kegiatan'
 const isMediaModalOpen = ref(false)
 
@@ -176,7 +178,7 @@ const selectImageFromGallery = (url) => {
           </div>
           <div class="flex items-center gap-4">
             <!-- Theme Toggle -->
-            <button @click="isDarkMode = !isDarkMode" class="p-2 rounded-full hover:bg-white/10 transition">
+            <button @click="themeStore.toggleTheme()" class="p-2 rounded-full hover:bg-white/10 transition">
               <span v-if="isDarkMode">☀️</span><span v-else>🌙</span>
             </button>
             <div class="hidden md:block text-right">

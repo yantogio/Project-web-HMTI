@@ -2,11 +2,13 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios' // <--- 1. Import Axios
+import { useThemeStore } from '../stores/theme'
 
 const router = useRouter()
+const themeStore = useThemeStore()
 
 // --- STATE ---
-const isDarkMode = ref(true)
+const isDarkMode = computed(() => themeStore.isDarkMode)
 const officers = ref([]) // <--- Data akan diisi dari backend, kosong di awal
 const isLoading = ref(true) // <--- Untuk menampilkan loading state
 
@@ -150,7 +152,7 @@ const themeClasses = computed(() => {
           <!-- LINKS & ACTIONS -->
           <div class="flex items-center gap-4">
             <!-- Theme Toggle -->
-            <button @click="isDarkMode = !isDarkMode" :class="[
+            <button @click="themeStore.toggleTheme()" :class="[
               'p-2 rounded-full transition-all duration-300 hover:scale-110',
               isDarkMode ? 'bg-white/10 text-yellow-400 hover:bg-white/20' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
             ]" title="Ganti Tema">

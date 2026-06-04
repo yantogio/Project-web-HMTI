@@ -28,7 +28,7 @@ export class DocumentsService {
 
       // 1. Upload ke Google Drive dengan menyertakan Folder ID tujuan
       // Kita tambahkan parameter kedua: targetFolderId
-      const driveResponse = await this.googleDriveService.uploadFile(file, targetFolderId);
+      const publicFile = await this.googleDriveService.uploadFile(file, targetFolderId);
 
       // 2. Simpan metadata ke Database SQLite
       return await this.prisma.document.create({
@@ -36,14 +36,15 @@ export class DocumentsService {
           title: dto.title,
           type: dto.type,
           category: file.mimetype,
-          fileUrl: driveResponse.webViewLink,
-          driveFileId: driveResponse.id,
+          fileUrl: publicFile.webContentLink || publicFile.webViewLink,
+          driveFileId: publicFile.id,
           description: dto.description || '',
           uploadedByNia: uploaderNia,
         },
       });
     } catch (error) {
-      this.logger.error(`Gagal upload: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Gagal upload: ${message}`);
       throw new InternalServerErrorException('Gagal memproses dokumen ke Cloud Storage');
     }
   }
@@ -58,7 +59,8 @@ export class DocumentsService {
       try {
         await this.googleDriveService.deleteFile(doc.driveFileId);
       } catch (e) {
-        this.logger.error(`Gagal hapus di Drive: ${e.message}`);
+        const message = e instanceof Error ? e.message : String(e);
+        this.logger.error(`Gagal hapus di Drive: ${message}`);
       }
     }
 
@@ -66,14 +68,54 @@ export class DocumentsService {
     return this.prisma.document.delete({ where: { id } });
   }
 
-  async findAll() {
-    return this.prisma.document.findMany({
+  async findOne(id: number) {
+    return this.prisma.document.findUnique({
+      where: { id },
+      include: {
+        uploader: {
+          select: { name: true }
+        }
+      }
+    });
+  }
+
+  async getDriveFileStream(fileId: string) {
+    if (!fileId) {
+      throw new NotFoundException('Drive file ID tidak tersedia');
+    }
+    return this.googleDriveService.getFileStream(fileId);
+  }
+
+  async findAll(page: number = 1, limit: number = 20) {
+    // Validasi input
+    page = Math.max(1, page);
+    limit = Math.min(100, Math.max(1, limit)); // Max 100 per page
+    
+    const skip = (page - 1) * limit;
+
+    // Get total count untuk pagination info
+    const total = await this.prisma.document.count();
+
+    // Get documents dengan pagination
+    const documents = await this.prisma.document.findMany({
       include: { 
         uploader: { 
           select: { name: true } 
         } 
       },
-      orderBy: { uploadDate: 'desc' }
+      orderBy: { uploadDate: 'desc' },
+      skip,
+      take: limit
     });
+
+    return {
+      data: documents,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    };
   }
 }

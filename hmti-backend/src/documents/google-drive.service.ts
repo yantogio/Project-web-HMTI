@@ -2,10 +2,20 @@ import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common
 import { google } from 'googleapis';
 import { Readable } from 'stream';
 
+// Try to load node-cache, fallback if not available
+let NodeCache: any;
+try {
+  NodeCache = require('node-cache');
+} catch (e) {
+  // node-cache not installed, will use dummy cache
+  NodeCache = null;
+}
+
 @Injectable()
 export class GoogleDriveService {
   private drive;
   private readonly logger = new Logger(GoogleDriveService.name);
+  private cache: any = null;
 
   constructor() {
     try {
@@ -15,6 +25,14 @@ export class GoogleDriveService {
       );
       oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_DRIVE_REFRESH_TOKEN });
       this.drive = google.drive({ version: 'v3', auth: oauth2Client });
+      
+      // Initialize cache if available
+      if (NodeCache) {
+        this.cache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
+        this.logger.log('✅ Cache enabled (node-cache)');
+      } else {
+        this.logger.warn('⚠️ Cache disabled (install node-cache for better performance)');
+      }
     } catch (e) {
       this.logger.error('Gagal inisialisasi Drive');
     }
@@ -70,8 +88,64 @@ export class GoogleDriveService {
 
       return publicFile.data;
     } catch (error) {
-      this.logger.error(`Drive Error: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Drive Error: ${message}`);
       throw new InternalServerErrorException('Gagal upload ke Cloud');
+    }
+  }
+
+  async getFileStream(fileId: string, retries = 3) {
+    if (!this.drive) throw new InternalServerErrorException('Drive Service Down');
+
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const response = await this.drive.files.get(
+          {
+            fileId,
+            alt: 'media',
+          },
+          {
+            responseType: 'stream',
+            timeout: 30000, // 30 detik timeout
+          }
+        );
+
+        // Setup stream error handling
+        response.data.on('error', (error) => {
+          this.logger.error(`Stream error untuk fileId ${fileId}: ${error.message}`);
+        });
+
+        return response.data;
+      } catch (error) {
+        const statusCode = (error as any)?.response?.status || 0;
+        const message = error instanceof Error ? error.message : String(error);
+
+        // Jika 429 (Too Many Requests) dan bukan attempt terakhir, retry dengan exponential backoff
+        if (statusCode === 429 && attempt < retries - 1) {
+          const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+          this.logger.warn(`Rate limited. Retry attempt ${attempt + 1}/${retries} dalam ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // Jika 404 atau error permission, jangan retry
+        if (statusCode === 404 || statusCode === 403) {
+          this.logger.error(`Gagal akses file ${fileId}: ${statusCode} ${message}`);
+          throw new InternalServerErrorException(`File tidak dapat diakses (${statusCode})`);
+        }
+
+        // Jika error lainnya dan bukan attempt terakhir, retry
+        if (attempt < retries - 1) {
+          const delay = Math.pow(2, attempt) * 1000;
+          this.logger.warn(`Error saat stream (${statusCode}). Retry ${attempt + 1}/${retries} dalam ${delay}ms`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // Attempt terakhir gagal
+        this.logger.error(`Gagal ambil file stream setelah ${retries} attempts: ${message}`);
+        throw new InternalServerErrorException('Gagal memuat file dari Drive');
+      }
     }
   }
 
@@ -82,8 +156,9 @@ export class GoogleDriveService {
         fileId: fileId,
       });
     } catch (error) {
-      this.logger.error(`Gagal menghapus file di Drive: ${error.message}`);
-      throw new InternalServerErrorException(`Gagal menghapus file di Drive: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Gagal menghapus file di Drive: ${message}`);
+      throw new InternalServerErrorException(`Gagal menghapus file di Drive: ${message}`);
     }
   }
 }

@@ -2,13 +2,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useThemeStore } from '../stores/theme'
 import axios from 'axios' // 1. Import Axios
 
 const router = useRouter()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 // --- 1. STATE & THEME ---
-const isDarkMode = ref(true)
+const isDarkMode = computed(() => themeStore.isDarkMode)
 const activeTab = ref('info')
 
 // Form Data Pribadi (KOSONG DI AWAL, NANTI DIISI DARI DATABASE)
@@ -201,7 +203,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="flex items-center gap-4">
-            <button @click="isDarkMode = !isDarkMode" class="p-2 rounded-full hover:bg-white/10 transition">
+            <button @click="themeStore.toggleTheme()" class="p-2 rounded-full hover:bg-white/10 transition">
               <span v-if="isDarkMode">☀️</span><span v-else>🌙</span>
             </button>
             <div class="hidden md:block text-right">

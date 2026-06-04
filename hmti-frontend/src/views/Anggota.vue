@@ -3,9 +3,14 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import { useThemeStore } from '../stores/theme'
+
+const router = useRouter()
+const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 // --- TEMA (Mode Gelap / Terang - selaras HomeView & LoginView) ---
-const isDarkMode = ref(true)
+const isDarkMode = computed(() => themeStore.isDarkMode)
 const themeClasses = computed(() => {
   if (isDarkMode.value) {
     return {
@@ -343,7 +348,7 @@ onMounted(() => { fetchMembers() })
           </div>
           <div class="flex items-center gap-4">
             <!-- Theme Toggle -->
-            <button @click="isDarkMode = !isDarkMode" :class="[
+            <button @click="themeStore.toggleTheme()" :class="[
               'p-2 rounded-full transition-all duration-300 hover:scale-110',
               isDarkMode ? 'bg-white/10 text-yellow-400 hover:bg-white/20' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
             ]" title="Ganti Tema">

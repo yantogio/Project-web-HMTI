@@ -97,7 +97,7 @@ Untuk beberapa modul pendukung seperti halaman *DocsView*, *ShowcaseHub*, dan be
 
 Dengan perancangan arsitektur seperti ini, saya berharap sistem dapat menjadi solusi komprehensif untuk transparansi administrasi HMTI, sekaligus menjadi representasi implementasi teknologi *web* modern yang layak untuk diuji dalam penelitian skripsi ini.
 
-
+Izin menjelaskan Pak, FinanceConfig merupakan tabel referensi global yang menyimpan parameter kebijakan organisasi. Hubungan antara tabel ini dengan tabel Dues bersifat Logic-Based, bukan Schema-Based. Sistem akan mengambil nilai nominal dari tabel Config hanya pada saat proses pembuatan tagihan (Generate), sehingga integritas histori keuangan tetap terjaga meskipun parameter konfigurasi diubah di masa depan.
 
 ------------------------------------------------------------------------------------------------------------
 

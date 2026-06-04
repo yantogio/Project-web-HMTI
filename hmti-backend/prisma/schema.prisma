@@ -83,7 +83,7 @@ model Document {
   category      String?  // 'PDF', 'IMAGE', 'VIDEO', 'VECTOR', 'CANVA_LINK'
   
   // Informasi Google Drive
-  driveFileId   String?  // ID unik dari Google Drive (PENTING untuk delete/download)
+  driveFileId   String?  @unique // ID unik dari Google Drive (PENTING untuk delete/download)
   fileUrl       String   // Link untuk preview atau akses langsung
   
   // Metadata tambahan
@@ -95,4 +95,6 @@ model Document {
   uploader      Member   @relation("DocumentUploader", fields: [uploadedByNia], references: [nia])
 
   @@index([type])
+  @@index([uploadDate])
+  @@index([driveFileId])
 }

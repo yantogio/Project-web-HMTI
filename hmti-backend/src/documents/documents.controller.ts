@@ -1,4 +1,5 @@
-import { Controller, Post, Get, Delete, Body, UseInterceptors, UploadedFile, BadRequestException, UseGuards, Req, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, UseInterceptors, UploadedFile, BadRequestException, UseGuards, Req, Param, ParseIntPipe, Res, NotFoundException, Query } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentsService } from './documents.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
@@ -38,8 +39,11 @@ export class DocumentsController {
   }
 
   @Get()
-  async getAll() {
-    return this.documentsService.findAll();
+  async getAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    
+    return this.documentsService.findAll(pageNum, limitNum);
   }
 
   @Delete(':id')
@@ -47,5 +51,55 @@ export class DocumentsController {
   @Roles('sekretaris')
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.documentsService.remove(id);
+  }
+
+  @Get('preview/:id')
+  async preview(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
+    try {
+      const doc = await this.documentsService.findOne(id);
+      if (!doc) {
+        throw new NotFoundException('Dokumen tidak ditemukan');
+      }
+
+      if (!doc.driveFileId) {
+        throw new NotFoundException('Drive file ID tidak tersedia');
+      }
+
+      // Set cache headers: no cache untuk video/live content, tapi browser bisa cache images
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      // Set content type
+      res.setHeader('Content-Type', doc.category || 'application/octet-stream');
+      
+      // Set timeout untuk client: 5 menit
+      res.setTimeout(5 * 60 * 1000);
+
+      const stream = await this.documentsService.getDriveFileStream(doc.driveFileId);
+      
+      // Error handling untuk stream
+      stream.on('error', (error) => {
+        console.error('Stream error:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Stream error' });
+        }
+      });
+
+      res.on('error', (error) => {
+        console.error('Response error:', error);
+        stream.destroy();
+      });
+
+      stream.pipe(res);
+    } catch (error) {
+      if (!res.headersSent) {
+        if (error instanceof NotFoundException) {
+          res.status(404).json({ error: error.message });
+        } else {
+          res.status(500).json({ error: 'Failed to load preview' });
+        }
+      }
+    }
   }
 }

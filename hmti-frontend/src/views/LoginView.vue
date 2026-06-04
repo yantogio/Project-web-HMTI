@@ -2,12 +2,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useThemeStore } from '../stores/theme'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 // --- TAMBAHAN LOGIKA TEMA (Agar selaras dengan HomeView) ---
-const isDarkMode = ref(true)
+const isDarkMode = computed(() => themeStore.isDarkMode)
 const themeClasses = computed(() => {
   if (isDarkMode.value) {
     return {
@@ -133,7 +135,7 @@ const togglePassword = () => {
     </div>
 
     <!-- THEME TOGGLE (Pojok Kanan Atas) -->
-    <button @click="isDarkMode = !isDarkMode" 
+    <button @click="themeStore.toggleTheme()" 
       class="absolute top-6 right-6 z-50 p-3 rounded-full backdrop-blur-md transition-all duration-300 hover:scale-110 border"
       :class="isDarkMode ? 'bg-white/10 border-white/20 text-yellow-400 hover:bg-white/20' : 'bg-white/80 border-slate-300 text-slate-600 hover:bg-slate-200 shadow-lg'"
     >

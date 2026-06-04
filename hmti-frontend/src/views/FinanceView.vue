@@ -2,10 +2,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useThemeStore } from '../stores/theme'
 import axios from 'axios' // Tambah import axios
 
 const router = useRouter()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 // --- TAMBAHKAN FUNGSI INI ---
 const goBackToMenu = () => {
@@ -13,7 +15,7 @@ const goBackToMenu = () => {
 }
 
 // --- 1. LOGIKA TEMA (Sama persis seperti sebelumnya) ---
-const isDarkMode = ref(true)
+const isDarkMode = computed(() => themeStore.isDarkMode)
 
 const themeClasses = computed(() => {
   if (isDarkMode.value) {
@@ -52,6 +54,7 @@ const themeClasses = computed(() => {
 // --- 2. DATA TRANSAKSI (KOSONG DI AWAL, DIISI API) ---
 const transactions = ref([])
 const duesList = ref([])      // Data Daftar Tagihan (Untuk di bawah Timeline)
+const duesSummaryList = ref([])
 const financeConfig = ref(null) // Data Konfigurasi (Nominal, Denda)
 // Form edit konfigurasi (duesAmount, lateFee, dueDay, finalDay)
 const configForm = ref({
@@ -126,6 +129,17 @@ const fetchDuesList = async () => {
   }
 }
 
+const fetchDuesSummary = async () => {
+  try {
+    const res = await axios.get('http://localhost:3000/dues/summary', {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    duesSummaryList.value = Array.isArray(res.data) ? res.data : []
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 // --- 2.3 FUNGSI GENERATE TAGIHAN (TRIGGER MANUAL) ---
 const generateDues = async () => {
   // Kita pakai prompt browser sederhana agar cepat
@@ -148,8 +162,9 @@ const generateDues = async () => {
 
     alert('Tagihan berhasil dibuat untuk semua anggota aktif!')
 
-    // Refresh list daftar status agar baru muncul
+    // Refresh daftar status dan ringkasan tagihan
     fetchDuesList()
+    fetchDuesSummary()
 
     // Refresh juga timeline transaksi (agar ada record pembayaran jika ada credit otomatis, nanti)
     fetchTransactions()
@@ -225,7 +240,7 @@ const monthlySummary = computed(() => {
 const isModalOpen = ref(false)
 const formType = ref('in')
 const incomeSource = ref('anggota')
-const formData = ref({ amount: '', category: '', desc: '' })
+const formData = ref({ amount: '', category: '', desc: '', targetNia: '' })
 
 // Hanya Bendahara yang boleh Menulis (Tombol FAB)
 const isBendahara = computed(() => authStore.user?.role === 'bendahara')
@@ -241,7 +256,8 @@ const openModal = (type) => {
 
 const closeModal = () => {
   isModalOpen.value = false
-  formData.value = { amount: '', category: '', desc: '' }
+  formData.value = { amount: '', category: '', desc: '', targetNia: '' }
+  paymentWarning.value = { show: false, message: '' }
 }
 
 // --- 5. API CALLS (INI YANG BARU) ---
@@ -265,19 +281,14 @@ const fetchTransactions = async () => {
 // Simpan Transaksi Baru
 const saveTransaction = async () => {
   try {
-    // Ambil periode saat ini (tahun-bulan) secara otomatis
-    const today = new Date();
-    const currentPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-
-    // Siapkan payload sesuai format backend
+    // Siapkan payload sesuai format backend; backend akan menentukan periode dari tanggal transaksi
     const payload = {
       type: formType.value,
       amount: formData.value.amount,
       category: formData.value.category,
       description: formData.value.desc,
       subCategory: formType.value === 'in' ? (incomeSource.value === 'anggota' ? 'Kas Anggota' : 'Dana Eksternal') : null,
-      targetNia: formData.value.targetNia, // Pastikan ini terisi
-      period: currentPeriod // di-generate otomatis
+      targetNia: formData.value.targetNia
     }
 
     await axios.post('http://localhost:3000/transactions', payload, {
@@ -290,9 +301,10 @@ const saveTransaction = async () => {
     closeModal()
     fetchTransactions() // Refresh timeline transaksi
     fetchDuesList()     // Refresh status pembayaran anggota agar langsung terupdate
+    fetchDuesSummary()
   } catch (error) {
     console.error(error)
-    alert('Gagal menyimpan transaksi.')
+    alert('Gagal menyimpan transaksi: ' + (error.response?.data?.message || error.message))
   }
 }
 
@@ -314,12 +326,12 @@ const fetchMembers = async () => {
 // --- 2.4 FUNGSI CEK STATUS TAGIHAN (NOTIFIKASI INSTANT) ---
 const checkDuesStatus = async (memberNia) => {
   try {
-    // Tentukan Periode saat ini (Bulan & Tahun sekarang)
+    // Gunakan periode berdasarkan tanggal saat ini untuk pengecekan instan
     const today = new Date();
-    const currentPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
     const res = await axios.get('http://localhost:3000/dues/check-status', {
-      params: { nia: memberNia, period: currentPeriod },
+      params: { nia: memberNia, period },
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
 
@@ -327,7 +339,11 @@ const checkDuesStatus = async (memberNia) => {
       // Update state notifikasi
       paymentWarning.value = {
         show: true,
-        message: res.data.status === 'PAID' || res.data.status === 'OVERPAID' ? 'LUNAS' : `Kurang: ${formatIDR(res.data.remaining)}`,
+        message: res.data.status === 'OVERPAID'
+          ? `Kredit: ${formatIDR(res.data.creditBalance || 0)}`
+          : res.data.status === 'PAID'
+            ? 'LUNAS'
+            : `Kurang: ${formatIDR(res.data.remaining)}`,
         amount: res.data.amountDue, // Jumlah total tagihan
         paid: res.data.amountPaid // Sudah bayar berapa
       }
@@ -336,12 +352,20 @@ const checkDuesStatus = async (memberNia) => {
     }
   } catch (error) {
     console.error(error)
+    paymentWarning.value = { show: false, message: '' }
   }
 }
 
 // Format Currency (Tetap sama)
 const formatIDR = (num) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num)
+}
+
+const displayDuesAmount = (item) => {
+  if (item.creditBalance > 0) {
+    return formatIDR(item.creditBalance)
+  }
+  return formatIDR(item.remaining)
 }
 
 // --- 6. LOGOUT (Sama) ---
@@ -357,6 +381,7 @@ onMounted(() => {
   fetchTransactions()
   fetchConfig()
   fetchDuesList()
+  fetchDuesSummary()
   fetchMembers()
 })
 </script>
@@ -400,7 +425,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="flex items-center gap-4">
-            <button @click="isDarkMode = !isDarkMode" class="p-2 rounded-full hover:bg-white/10 transition">
+            <button @click="themeStore.toggleTheme()" class="p-2 rounded-full hover:bg-white/10 transition">
               <span v-if="isDarkMode">☀️</span><span v-else>🌙</span>
             </button>
             <button @click="handleLogout"
@@ -648,15 +673,16 @@ onMounted(() => {
 
           <!-- List Kartu Anggota -->
           <div :class="['p-5 rounded-2xl border space-y-3 max-h-[400px] overflow-y-auto', themeClasses.cardContent]">
-            <div v-if="!duesList || duesList.length === 0" class="text-center py-4 opacity-50">Belum ada data tagihan.
+            <div v-if="!duesSummaryList || duesSummaryList.length === 0" class="text-center py-4 opacity-50">Belum ada data tagihan.
             </div>
 
-            <div v-for="item in duesList" :key="item.id || item.member?.nia"
+            <div v-for="item in duesSummaryList" :key="item.member?.nia"
               class="flex justify-between items-center p-3 rounded-lg border last:border-0"
               :class="isDarkMode ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50'">
               <div class="flex flex-col">
                 <span :class="['font-bold text-sm', themeClasses.text]">{{ item.member?.name || '-' }}</span>
                 <span :class="['text-xs', themeClasses.textMuted]">{{ item.member?.angkatan || '-' }}</span>
+                <span class="text-[10px] opacity-70">{{ item.periodsCount }} periode tagihan</span>
               </div>
 
               <div class="text-right">
@@ -667,8 +693,10 @@ onMounted(() => {
                   {{ item.status }}
                 </div>
                 <div :class="['text-xs font-bold', themeClasses.text]">
-                  {{ formatIDR((item.amountDue || 0) - (item.amountPaid || 0)) }}
-                  <span class="text-[10px] font-normal opacity-60">Sisa</span>
+                  {{ displayDuesAmount(item) }}
+                  <span class="text-[10px] font-normal opacity-60">
+                    {{ item.creditBalance > 0 ? 'Kredit' : 'Sisa' }}
+                  </span>
                 </div>
               </div>
             </div>

@@ -13,6 +13,13 @@ export class DuesController {
     return this.duesService.checkMemberStatus(nia, period);
   }
 
+  // 1.b Ringkasan Status Anggota per Membership (Akurat dan kumulatif)
+  @Get('summary')
+  @UseGuards(JwtAuthGuard)
+  getSummary() {
+    return this.duesService.getSummary();
+  }
+
   // 2. Daftar Status Anggota (Pagination)
   @Get()
   @UseGuards(JwtAuthGuard)

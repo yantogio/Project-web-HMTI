@@ -1,14 +1,16 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useThemeStore } from '../stores/theme'
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 // import axios from 'axios' // Opsional, kalau mau taruh data kecil di navbar
 
 const router = useRouter()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 // --- LOGIKA TEMA (KONSISTEN DENGAN HALAMAN LAIN) ---
-const isDarkMode = ref(true)
+const isDarkMode = computed(() => themeStore.isDarkMode)
 
 const themeClasses = computed(() => {
   if (isDarkMode.value) {
@@ -150,7 +152,7 @@ const getIconSvg = (iconName) => {
                  :class="isDarkMode ? 'border-white/10' : 'border-slate-200'">
               
               <!-- Theme Toggle -->
-              <button @click="isDarkMode = !isDarkMode" 
+              <button @click="themeStore.toggleTheme()" 
                 class="p-2 rounded-full transition-transform hover:rotate-12"
                 :class="isDarkMode ? 'text-yellow-400' : 'text-slate-400'">
                 <svg v-if="isDarkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

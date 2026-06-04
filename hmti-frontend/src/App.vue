@@ -1,8 +1,10 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from './stores/auth'
+import { useThemeStore } from './stores/theme'
 
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 const toast = computed(() => authStore.toast)
 
 // Fungsi logout tetap ada untuk dipanggil di halaman admin
@@ -13,7 +15,7 @@ const handleLogout = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100 flex flex-col">
+  <div :class="['min-h-screen flex flex-col', themeStore.isDarkMode ? 'bg-slate-900' : 'bg-slate-50']">
     
     <!-- TOAST GLOBAL (Tetap ada di sini) -->
     <div 
