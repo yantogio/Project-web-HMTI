@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
+import SpeedDialNav from '../components/SpeedDialNav.vue'
 import axios from 'axios' // 1. Import Axios
 
 const router = useRouter()
@@ -216,6 +217,7 @@ onMounted(() => {
         </div>
       </div>
     </nav>
+    <SpeedDialNav />
 
     <!-- MAIN CONTENT -->
     <main class="relative z-10 max-w-6xl mx-auto px-4 py-8">
@@ -231,10 +233,12 @@ onMounted(() => {
           <p :class="['text-lg font-light', isDarkMode ? 'text-blue-200' : 'text-slate-600']">Kelola informasi diri dan keamanan akun.</p>
         </div>
         
-        <button @click="goBackToMenu"
-          :class="['md:hidden px-4 py-2 rounded-lg text-sm border', themeClasses.btnBackMobile]">
-          &larr; Kembali ke Menu
-        </button>
+        <div class="flex flex-col items-end gap-3">
+          <button @click="goBackToMenu"
+            :class="['md:hidden px-4 py-2 rounded-lg text-sm border', themeClasses.btnBackMobile]">
+            &larr; Kembali ke Menu
+          </button>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">

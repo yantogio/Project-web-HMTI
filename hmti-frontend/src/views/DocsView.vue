@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
+import SpeedDialNav from '../components/SpeedDialNav.vue'
 import { uploadDocument, getDocuments, deleteDocument } from '../api/documentApi'
 
 const router = useRouter()
@@ -18,6 +19,8 @@ const fileInput = ref(null)
 const activeTab = ref('surat')
 const searchQuery = ref('')
 const isDarkMode = computed(() => themeStore.isDarkMode)
+const allowedUploadRoles = ['ketum', 'bendahara', 'sekretaris']
+const canUpload = computed(() => allowedUploadRoles.includes(authStore.user?.role))
 
 // === PAGINATION STATE ===
 const currentPage = ref(1)
@@ -75,7 +78,7 @@ const handleFileUpload = async (event) => {
     alert('Upload Berhasil, sob!')
     fetchDocs()
   } catch (err) {
-    const msg = err.response?.status === 403 ? 'Waduh, cuma Sekretaris yang boleh upload!' : 'Gagal upload. Cek koneksi backend!'
+    const msg = err.response?.status === 403 ? 'Hanya Ketua, Bendahara, dan Sekretaris yang dapat upload dokumen.' : 'Gagal upload. Cek koneksi backend!'
     alert(msg)
   } finally {
     isUploading.value = false
@@ -98,9 +101,10 @@ const deleteDoc = async (id) => {
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
 
-const getDriveMediaUrl = (doc) => {
+const getDocumentUrl = (doc, action = 'preview') => {
   if (!doc?.id) return doc.fileUrl
-  return `${apiBaseUrl}/documents/preview/${doc.id}`
+  const endpoint = action === 'download' ? 'download' : 'preview'
+  return `${apiBaseUrl}/documents/${endpoint}/${doc.id}`
 }
 
 const isImage = (mimeType) => mimeType?.startsWith('image/')
@@ -241,6 +245,7 @@ const getPlaceholderImage = (mimeType) => {
         </div>
       </div>
     </nav>
+    <SpeedDialNav />
 
     <!-- MAIN CONTENT -->
     <main class="relative z-10 max-w-7xl mx-auto px-4 py-8">
@@ -260,11 +265,12 @@ const getPlaceholderImage = (mimeType) => {
           <p class="text-blue-200 text-lg font-light">Kelola arsip, media, dan aset kreatif dalam satu tempat.</p>
         </div>
 
-        <!-- Tombol Kembali (Mobile) -->
-        <button @click="goBackToMenu"
-          :class="['md:hidden px-4 py-2 rounded-lg text-sm border', themeClasses.btnBackMobile]">
-          &larr; Kembali ke Menu
-        </button>
+        <div class="flex flex-col items-end gap-3">
+          <button @click="goBackToMenu"
+            :class="['md:hidden px-4 py-2 rounded-lg text-sm border', themeClasses.btnBackMobile]">
+            &larr; Kembali ke Menu
+          </button>
+        </div>
       </div>
 
       <!-- TAB NAVIGATION -->
@@ -305,13 +311,18 @@ const getPlaceholderImage = (mimeType) => {
               :class="['w-full rounded-xl px-4 py-3 pl-12 outline-none transition-all', themeClasses.inputBg]">
           </div>
 
-          <button @click="openFilePicker" :disabled="isUploading"
-            :class="['w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30', isUploading ? 'opacity-50 cursor-not-allowed' : '']">
-            <span>{{ isUploading ? 'Memproses...' : 'Upload Dokumen' }}</span>
-          </button>
+          <div class="w-full md:w-auto">
+            <button v-if="canUpload" @click="openFilePicker" :disabled="isUploading"
+              :class="['w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30', isUploading ? 'opacity-50 cursor-not-allowed' : '']">
+              <span>{{ isUploading ? 'Memproses...' : 'Upload Dokumen' }}</span>
+            </button>
+            <div v-else :class="['text-sm text-slate-400 rounded-xl p-3 border border-dashed', themeClasses.cardGlass]">
+              Hanya Ketua, Bendahara, dan Sekretaris yang dapat mengunggah dokumen.
+            </div>
+          </div>
         </div>
 
-        <div v-if="!isUploading" @click="openFilePicker" @dragover.prevent @drop.prevent="handleFileUpload"
+        <div v-if="canUpload && !isUploading" @click="openFilePicker" @dragover.prevent @drop.prevent="handleFileUpload"
           class="mt-4 w-full p-8 border-2 border-dashed border-blue-400/30 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-blue-500/5 transition-all cursor-pointer">
           <p class="text-blue-400 font-medium">Klik atau Drop file ke sini</p>
           <p class="text-xs text-blue-400/60 text-center">Format: PDF, DOCX, PNG, JPG (Maks. 10MB)</p>
@@ -344,8 +355,9 @@ const getPlaceholderImage = (mimeType) => {
                 </td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex justify-end gap-3">
-                    <a :href="getDriveMediaUrl(l)" target="_blank" class="text-emerald-400 hover:text-emerald-300 font-bold">Buka
-                      File →</a>
+                    <a :href="getDocumentUrl(l, 'preview')" target="_blank" class="text-blue-500 hover:text-blue-400 font-bold">Lihat Dokumen</a>
+              
+                    <a :href="getDocumentUrl(l, 'download')" target="_blank" class="text-emerald-400 hover:text-emerald-300 font-bold">Download</a>
                     <button v-if="authStore.user?.role === 'sekretaris'" @click="deleteDoc(l.id)"
                       class="text-red-400 hover:text-red-500">Hapus</button>
                   </div>
@@ -366,14 +378,16 @@ const getPlaceholderImage = (mimeType) => {
             <h3 :class="['text-xl font-bold', themeClasses.text]">Galeri Event HMTI</h3>
             <p :class="['text-sm', themeClasses.textMuted]">Dokumentasi visual setiap kegiatan himpunan.</p>
           </div>
-          <button @click="openFilePicker" :disabled="isUploading"
-            :class="['px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/30', isUploading ? 'opacity-50' : '']">
-            <span>{{ isUploading ? 'Uploading...' : '+ Upload Foto Event' }}</span>
-          </button>
+          <div>
+            <button v-if="canUpload" @click="openFilePicker" :disabled="isUploading"
+              :class="['px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/30', isUploading ? 'opacity-50' : '']">
+              <span>{{ isUploading ? 'Uploading...' : '+ Upload Foto Event' }}</span>
+            </button>
+          </div>
         </div>
 
-        <div v-if="mediaDocs.length === 0 && !isUploading" @click="openFilePicker"
-          class="w-full py-12 border-2 border-dashed border-emerald-500/20 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-emerald-500/5 cursor-pointer transition-all">
+        <div v-if="mediaDocs.length === 0 && !isUploading" @click="canUpload && openFilePicker()"
+          class="w-full py-12 border-2 border-dashed border-emerald-500/20 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-emerald-500/5 transition-all">
           <span class="text-3xl">📸</span>
           <p class="text-emerald-400 font-medium">Belum ada foto. Klik untuk upload dokumentasi pertama!</p>
         </div>
@@ -384,7 +398,7 @@ const getPlaceholderImage = (mimeType) => {
             <div class="aspect-video w-full overflow-hidden bg-slate-800">
               <template v-if="isVideo(m.category)">
                 <video
-                  :src="getDriveMediaUrl(m, true)"
+                  :src="getDocumentUrl(m, 'preview')"
                   class="w-full h-full object-cover"
                   controls
                   preload="metadata"
@@ -393,7 +407,7 @@ const getPlaceholderImage = (mimeType) => {
               </template>
               <template v-else-if="isImage(m.category)">
                 <img
-                  :src="getDriveMediaUrl(m)"
+                  :src="getDocumentUrl(m, 'preview')"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   alt="Preview Asset"
                 />
@@ -410,9 +424,11 @@ const getPlaceholderImage = (mimeType) => {
               <p :class="['font-bold truncate', themeClasses.text]">{{ m.title }}</p>
               <p :class="['text-xs', themeClasses.textMuted]">Oleh: {{ m.uploader?.name || 'Sekretaris' }}</p>
               <div class="flex gap-2 mt-3">
-                <a :href="getDriveMediaUrl(m)" target="_blank"
+                <a :href="getDocumentUrl(m, 'preview')" target="_blank"
                   class="flex-1 text-center py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-all">Lihat
                   Full</a>
+                <a :href="getDocumentUrl(m, 'download')" target="_blank"
+                  class="flex-1 text-center py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all">Download</a>
                 <button v-if="authStore.user?.role === 'sekretaris'" @click="deleteDoc(m.id)"
                   class="px-3 py-2 bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white rounded-lg transition-all">🗑️</button>
               </div>
@@ -425,10 +441,12 @@ const getPlaceholderImage = (mimeType) => {
       <div v-if="activeTab === 'branding'" class="space-y-6">
         <div class="flex justify-between items-center mb-6">
           <h3 :class="['text-xl font-bold', themeClasses.text]">Aset Branding HMTI</h3>
-          <button @click="openFilePicker" :disabled="isUploading"
-            :class="['px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-blue-500/30', isUploading ? 'opacity-50' : '']">
-            <span>{{ isUploading ? 'Uploading...' : '+ Tambah Aset' }}</span>
-          </button>
+          <div>
+            <button v-if="canUpload" @click="openFilePicker" :disabled="isUploading"
+              :class="['px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-blue-500/30', isUploading ? 'opacity-50' : '']">
+              <span>{{ isUploading ? 'Uploading...' : '+ Tambah Aset' }}</span>
+            </button>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -437,7 +455,7 @@ const getPlaceholderImage = (mimeType) => {
             <div class="aspect-square w-full overflow-hidden bg-slate-800 rounded-lg">
               <template v-if="isVideo(b.category)">
                 <video
-                  :src="getDriveMediaUrl(b, true)"
+                  :src="getDocumentUrl(b, 'preview')"
                   class="w-full h-full object-cover"
                   controls
                   preload="metadata"
@@ -446,7 +464,7 @@ const getPlaceholderImage = (mimeType) => {
               </template>
               <template v-else-if="isImage(b.category)">
                 <img
-                  :src="getDriveMediaUrl(b)"
+                  :src="getDocumentUrl(b, 'preview')"
                   class="w-full h-full object-cover group-hover:scale-105 transition-all"
                   alt="Preview Asset"
                 />
@@ -463,8 +481,10 @@ const getPlaceholderImage = (mimeType) => {
               <p :class="['font-bold text-sm truncate px-2', themeClasses.text]">{{ b.title }}</p>
             </div>
             <div class="flex flex-col w-full gap-2">
-              <a :href="getDriveMediaUrl(b)" target="_blank"
-                class="w-full py-2 bg-white/5 hover:bg-white/10 text-center rounded-lg text-xs font-bold transition-all border border-white/5">Download</a>
+              <a :href="getDocumentUrl(b, 'download')" target="_blank"
+                class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-center rounded-lg text-xs font-bold transition-all">Download</a>
+              <a :href="getDocumentUrl(b, 'preview')" target="_blank"
+                class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-center rounded-lg text-xs font-bold transition-all">Lihat Full</a>
               <button v-if="authStore.user?.role === 'sekretaris'" @click="deleteDoc(b.id)"
                 class="text-[10px] text-red-400 hover:underline">Hapus Aset</button>
             </div>

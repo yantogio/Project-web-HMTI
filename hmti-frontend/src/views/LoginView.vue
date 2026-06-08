@@ -88,6 +88,7 @@ const handleLogin = async () => {
   const success = await authStore.login(loginData.value)
   
   if (success) {
+    addToHistory(loginData.value.nia)
     router.push('/admin') 
   } else {
     errorMessage.value = 'NIA atau Password salah!'

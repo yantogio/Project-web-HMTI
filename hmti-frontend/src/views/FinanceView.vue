@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
+import SpeedDialNav from '../components/SpeedDialNav.vue'
 import axios from 'axios' // Tambah import axios
 
 const router = useRouter()
@@ -436,6 +437,7 @@ onMounted(() => {
         </div>
       </div>
     </nav>
+    <SpeedDialNav />
 
     <!-- MAIN CONTENT -->
     <main class="relative z-10 max-w-7xl mx-auto px-4 py-8 space-y-8">
@@ -454,7 +456,7 @@ onMounted(() => {
           </h1>
           <p class="text-blue-200 text-lg font-light">Pusat data dan informasi arus kas HMTI.</p>
         </div>
-        <div class="flex flex-col gap-2 items-end">
+        <div class="flex flex-col items-end gap-3">
           <button @click="goBackToMenu"
             :class="['md:hidden px-4 py-2 rounded-lg text-sm border', themeClasses.btnBackMobile]">
             &larr; Kembali ke Menu

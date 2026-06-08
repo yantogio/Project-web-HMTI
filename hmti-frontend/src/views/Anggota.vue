@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
+import SpeedDialNav from '../components/SpeedDialNav.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -244,9 +245,6 @@ const paginatedMembers = computed(() => {
 })
 const goToPage = (page) => { if (page >= 1 && page <= totalPages.value) currentPage.value = page }
 
-// Store & Router
-const authStore = useAuthStore()
-const router = useRouter()
 const canManageData = computed(() => {
   if (!authStore.user) return false
   return authStore.user.role !== 'anggota'
@@ -369,6 +367,7 @@ onMounted(() => { fetchMembers() })
         </div>
       </div>
     </nav>
+    <SpeedDialNav />
 
     <div class="relative z-10 max-w-7xl mx-auto space-y-8">
 
@@ -379,16 +378,14 @@ onMounted(() => { fetchMembers() })
           </h1>
           <p :class="['text-lg font-light', themeClasses.textMuted]">Pusat data dan informasi seluruh anggota himpunan.</p>
         </div>
-        <button @click="goBackToMenu"
-          :class="['md:hidden px-4 py-2 rounded-lg text-sm border', themeClasses.btnBackMobile]">
-          &larr; Kembali ke Menu
-        </button>
+        <div class="flex flex-col items-end gap-3">
+          <button @click="goBackToMenu"
+            :class="['md:hidden px-4 py-2 rounded-lg text-sm border', themeClasses.btnBackMobile]">
+            &larr; Kembali ke Menu
+          </button>
+        </div>
       </div>
-
-      <!-- BAGIAN CTA (STATISTIK + TOMBOL) -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        <!-- Card 1: Statistik -->
         <div :class="['border p-6 rounded-2xl flex flex-col justify-between items-start transition duration-300', themeClasses.cardGlass, themeClasses.cardBorder]">
           <div>
             <div :class="['text-sm font-bold uppercase tracking-wider mb-1', isDarkMode ? 'text-blue-300' : 'text-blue-600']">Total Anggota</div>
