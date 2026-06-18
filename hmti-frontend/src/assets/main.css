@@ -1,3 +1,243 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================
+   GLOBAL ANIMATIONS — HMTI PROJECT
+   Semua animasi dan kelas reusable dipusatkan di sini
+   ============================================================ */
+
+/* === Blob background animation === */
+@keyframes blob {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(30px, -50px) scale(1.1); }
+  66%  { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+.animate-blob { animation: blob 14s infinite; }
+
+.animation-delay-1000 { animation-delay: 1s; }
+.animation-delay-2000 { animation-delay: 2s; }
+.animation-delay-3000 { animation-delay: 3s; }
+.animation-delay-4000 { animation-delay: 4s; }
+.animation-delay-5000 { animation-delay: 5s; }
+
+/* === Floating badge animations === */
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+@keyframes floatDown {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(10px); }
+}
+@keyframes floatY {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-14px); }
+}
+@keyframes floatYReverse {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(14px); }
+}
+
+.animate-float      { animation: floatUp 3.2s ease-in-out infinite; }
+.animate-float-slow { animation: floatDown 4s ease-in-out infinite; }
+.animate-float-r    { animation: floatYReverse 6s ease-in-out infinite; }
+
+/* === Hero entry animation === */
+@keyframes fadeUpIn {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hero-fade-up {
+  opacity: 0;
+  animation: fadeUpIn 0.65s ease forwards;
+}
+
+/* === Scroll dot indicator in hero === */
+@keyframes scrollDot {
+  0%   { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(14px); }
+}
+
+/* === Scroll-reveal for below-fold sections === */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+
+.scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* === Stagger children inside scroll-reveal === */
+.stagger-child {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.stagger-child.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* === Login/Auth page panel animations === */
+@keyframes loginEnter {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes leftEnter {
+  from { opacity: 0; transform: translateX(-28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes pulseSlow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50%       { opacity: 0.65; transform: scale(1.06); }
+}
+
+.animate-spin-slow  { animation: spinSlow 20s linear infinite; }
+.animate-pulse-slow { animation: pulseSlow 3.5s ease-in-out infinite; }
+.login-enter        { animation: loginEnter 0.65s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.left-enter         { animation: leftEnter 0.65s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* === Generic fade-in (tab transitions, modals) === */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+
+/* === Finance bar chart grow animation === */
+@keyframes barGrow {
+  from { transform: scaleY(0); transform-origin: bottom; }
+  to   { transform: scaleY(1); transform-origin: bottom; }
+}
+
+.chart-bar-group { position: relative; }
+.chart-bar {
+  animation: barGrow 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform-origin: bottom;
+}
+
+/* === Anggota profile modal transitions === */
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+.modal-zoom-enter-active {
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.modal-zoom-leave-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.modal-zoom-enter-from {
+  opacity: 0;
+  transform: scale(0.85) translateY(30px);
+}
+.modal-zoom-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(15px);
+}
+
+/* === Scrollbar hide (Docs page tabs) === */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ============================================================
+   INTERACTIVE BACKGROUND — AnimatedBackground.vue
+   ============================================================ */
+
+/* === Aurora shifting gradient base === */
+@keyframes aurora {
+  0%, 100% { background-position: 0% 50%; }
+  33%       { background-position: 100% 0%; }
+  66%       { background-position: 50% 100%; }
+}
+
+.aurora-light {
+  background: linear-gradient(-45deg,
+    rgba(219, 234, 254, 0.35),
+    rgba(254, 243, 199, 0.22),
+    rgba(255, 231, 213, 0.22),
+    rgba(224, 248, 254, 0.30));
+  background-size: 400% 400%;
+  animation: aurora 18s ease-in-out infinite;
+}
+
+.aurora-dark {
+  background: linear-gradient(-45deg,
+    rgba(12, 20, 60, 0.55),
+    rgba(24, 10, 50, 0.45),
+    rgba(8, 30, 60, 0.55),
+    rgba(18, 8, 45, 0.45));
+  background-size: 400% 400%;
+  animation: aurora 18s ease-in-out infinite;
+}
+
+/* === Floating particles (rising from bottom) === */
+@keyframes rise {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  8%   { opacity: 0.7; }
+  75%  { opacity: 0.3; }
+  100% { transform: translateY(-85vh) scale(0.3); opacity: 0; }
+}
+
+.animate-rise { animation: rise linear infinite; }
+
+/* === Sparkle twinkling glow dots === */
+@keyframes twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.2); }
+  45%       { opacity: 1; transform: scale(1.1); }
+  55%       { opacity: 1; transform: scale(1.0); }
+}
+
+.animate-sparkle { animation: twinkle ease-in-out infinite; }
+
+/* === Shooting star diagonal streak === */
+@keyframes shoot {
+  0%   { transform: translate(0, 0) rotate(-22deg); opacity: 0; }
+  4%   { opacity: 1; }
+  92%  { opacity: 0.9; }
+  100% { transform: translate(2400px, 500px) rotate(-22deg); opacity: 0; }
+}
+
+.animate-shoot { animation: shoot 5s linear infinite; }
+
+/* === Expanding pulse ring === */
+@keyframes expandRing {
+  0%   { width: 0; height: 0; opacity: 0.7; }
+  100% { width: 700px; height: 700px; opacity: 0; }
+}
+
+.animate-pulse-ring {
+  position: absolute;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 50%;
+  animation: expandRing 5.5s ease-out infinite;
+  transform: translate(-50%, -50%);
+}
+
+/* === Film-grain noise texture (SVG fractal noise) === */
+.noise-texture {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  mix-blend-mode: overlay;
+}

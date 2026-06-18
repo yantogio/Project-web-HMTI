@@ -48,7 +48,7 @@ export class DocumentsController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('sekretaris')
+  @Roles('ketum', 'bendahara', 'sekretaris')
   async remove(@Param('id', ParseIntPipe) id: number) {
     return this.documentsService.remove(id);
   }

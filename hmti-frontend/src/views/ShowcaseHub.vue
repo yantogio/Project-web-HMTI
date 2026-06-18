@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
-import SpeedDialNav from '../components/SpeedDialNav.vue'
+import AdminPageLayout from '../components/AdminPageLayout.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -34,6 +34,14 @@ const formData = ref({
   imageUrl: ''
 })
 
+const sanitizeText = (text) => {
+  if (!text) return ''
+  try {
+    return decodeURIComponent(encodeURIComponent(text))
+      .replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, '')
+  } catch (e) { return text }
+}
+
 // Theme Classes
 const themeClasses = computed(() => {
   if (isDarkMode.value) {
@@ -52,18 +60,17 @@ const themeClasses = computed(() => {
     }
   } else {
     return {
-      bg: 'bg-slate-50',
-      text: 'text-slate-900',
-      textMuted: 'text-slate-500',
-      cardGlass: 'bg-white border border-slate-200 hover:border-purple-300 hover:shadow-lg shadow-sm backdrop-blur-sm',
-      inputBg: 'bg-white/50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-purple-500 focus:bg-white',
-      navGlass: 'bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm',
-      tabActive: 'bg-purple-600 text-white shadow-lg shadow-purple-500/20',
-      tabInactive: 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200',
-      btnBack: 'text-blue-600 hover:text-blue-800',
-      btnBackMobile: 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50',
-      // Light mode: gunakan gradasi biru agar konsisten dengan halaman lain
-      textLightModeFix: 'text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-800'
+      bg: 'bg-cream',
+      text: 'text-stone-900',
+      textMuted: 'text-stone-500',
+      cardGlass: 'bg-white border border-amber-200/70 hover:border-primary-blue/30 hover:shadow-lg shadow-md backdrop-blur-sm',
+      inputBg: 'bg-white border-stone-300 text-stone-900 placeholder-stone-400 focus:border-primary-blue focus:bg-white',
+      navGlass: 'bg-cream-light/90 backdrop-blur-md border-b border-amber-200 shadow-sm',
+      tabActive: 'bg-gradient-to-r from-primary-blue to-accent-orange text-white shadow-lg shadow-primary-blue/25',
+      tabInactive: 'bg-white text-stone-600 hover:bg-cream-light border border-amber-200',
+      btnBack: 'text-primary-blue hover:text-primary-blue-dark',
+      btnBackMobile: 'bg-white text-stone-700 border-amber-200 hover:bg-cream-light',
+      textLightModeFix: 'text-transparent bg-clip-text bg-gradient-to-r from-primary-blue via-accent-orange to-accent-orange'
     }
   }
 })
@@ -157,50 +164,7 @@ const selectImageFromGallery = (url) => {
 </script>
 
 <template>
-  <div :class="['min-h-screen relative overflow-hidden transition-colors duration-500', themeClasses.bg]">
-    
-    <!-- BACKGROUND ANIMATION (Purple Theme untuk Showcase) -->
-    <div class="fixed inset-0 pointer-events-none z-0">
-      <div class="absolute top-0 left-1/4 w-96 h-96 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob transition-colors duration-500"></div>
-      <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 transition-colors duration-500"></div>
-    </div>
-
-    <!-- NAVBAR -->
-    <nav
-      :class="['sticky top-0 z-40 shadow-2xl rounded-b-2xl mb-8 transition-all duration-300', themeClasses.navGlass]">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center gap-3">
-            <button @click="goBackToMenu" :class="['transition-colors', themeClasses.btnBack]">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M10 19l-7-7m0 0l7-7m7 7V5a3 3 0 01-3 3h-4M3 8h4a3 3 0 013 3v8a3 3 0 01-3 3h-4a3 3 0 01-3-3V8z">
-                </path>
-              </svg>
-            </button>
-            <div
-              :class="['font-bold text-xl tracking-wide bg-clip-text text-transparent bg-gradient-to-r', isDarkMode ? 'from-purple-200 to-white' : 'from-blue-600 to-blue-900']">
-              HMTI
-              <span :class="['font-light', isDarkMode ? 'text-purple-200' : 'text-blue-700']"> SHOWCASE</span>
-            </div>
-          </div>
-          <div class="flex items-center gap-4">
-            <!-- Theme Toggle -->
-            <button @click="themeStore.toggleTheme()" class="p-2 rounded-full hover:bg-white/10 transition">
-              <span v-if="isDarkMode">☀️</span><span v-else>🌙</span>
-            </button>
-            <div class="hidden md:block text-right">
-              <div :class="['text-sm font-bold', themeClasses.text]">{{ authStore.user ? authStore.user.name : 'User' }}</div>
-              <div :class="['text-xs capitalize', themeClasses.textMuted]">{{ authStore.user ? authStore.user.role : 'Guest' }}</div>
-            </div>
-            <button @click="handleLogout"
-              class="bg-red-500/80 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">KELUAR</button>
-          </div>
-        </div>
-      </div>
-    </nav>
-    <SpeedDialNav />
+  <AdminPageLayout section="SHOWCASE" accent="purple" variant="rounded" logout-message="Keluar dari Showcase Hub?">
 
     <!-- MAIN CONTENT -->
     <main class="relative z-10 max-w-7xl mx-auto px-4 py-8">
@@ -360,8 +324,8 @@ const selectImageFromGallery = (url) => {
 
               <!-- Content -->
               <div class="p-4">
-                <h4 :class="['font-bold text-lg mb-1 truncate', themeClasses.text]">{{ item.title }}</h4>
-                <p :class="['text-sm opacity-70 line-clamp-2 mb-3', themeClasses.textMuted]">{{ item.desc }}</p>
+                <h4 :class="['font-bold text-lg mb-1 truncate', themeClasses.text]">{{ sanitizeText(item.title) }}</h4>
+                <p :class="['text-sm opacity-70 line-clamp-2 mb-3', themeClasses.textMuted]">{{ sanitizeText(item.desc) }}</p>
                 
                 <!-- Dynamic Meta Info -->
                 <div class="flex items-center justify-between text-xs font-bold opacity-60">
@@ -382,10 +346,15 @@ const selectImageFromGallery = (url) => {
     <div v-if="isMediaModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" @click="isMediaModalOpen = false"></div>
       
-      <div :class="['relative w-full max-w-4xl bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6 overflow-hidden max-h-[90vh] flex flex-col', isDarkMode ? '' : 'bg-white border-slate-200']">
-        <div class="flex justify-between items-center mb-4">
-          <h3 :class="['text-xl font-bold', themeClasses.text]">Pilih Foto dari Dokumentasi</h3>
-          <button @click="isMediaModalOpen = false" class="text-gray-400 hover:text-white">✕</button>
+      <div :class="['relative w-full max-w-4xl border rounded-2xl shadow-2xl p-6 overflow-hidden max-h-[90vh] flex flex-col', isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-slate-200']">
+        <div class="flex justify-between items-center mb-6">
+          <h3 :class="['text-2xl font-black', themeClasses.text]">Pilih Media Dokumentasi</h3>
+          <button @click="isMediaModalOpen = false" 
+                  class="p-2 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <div class="overflow-y-auto flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -397,13 +366,6 @@ const selectImageFromGallery = (url) => {
         </div>
       </div>
     </div>
-  </div>
+  </AdminPageLayout>
 </template>
 
-    <style>
-    @keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.1); } 66% { transform: translate(-20px, 20px) scale(0.9); } 100% { transform: translate(0px, 0px) scale(1); } }
-    .animate-blob { animation: blob 10s infinite; }
-    .animation-delay-2000 { animation-delay: 2s; }
-    .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-    </style>

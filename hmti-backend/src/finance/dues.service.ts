@@ -330,7 +330,7 @@ export class DuesService {
       return {
         ...item,
         remaining,
-        status: remaining < 0 ? 'OVERPAID' : item.status
+        status: (remaining < 0 || item.creditBalance > 0) ? 'OVERPAID' : item.status
       };
     });
 

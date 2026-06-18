@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
-import SpeedDialNav from '../components/SpeedDialNav.vue'
+import AdminPageLayout from '../components/AdminPageLayout.vue'
 import axios from 'axios' // Tambah import axios
 
 const router = useRouter()
@@ -36,21 +36,33 @@ const themeClasses = computed(() => {
     }
   } else {
     return {
-      bg: 'bg-slate-50',
-      text: 'text-slate-900',
-      textMuted: 'text-slate-500',
-      cardGlass: 'bg-white border border-slate-200 hover:border-blue-300 hover:shadow-lg shadow-sm backdrop-blur-sm',
-      cardContent: 'bg-white border border-slate-100 shadow-sm',
-      inputBg: 'bg-white border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl',
+      bg: 'bg-cream',
+      text: 'text-stone-900',
+      textMuted: 'text-stone-500',
+      cardGlass: 'bg-white border border-amber-200/70 hover:border-primary-blue/30 hover:shadow-lg shadow-md backdrop-blur-sm',
+      cardContent: 'bg-white border border-amber-100 shadow-sm',
+      inputBg: 'bg-white border border-stone-300 text-stone-900 placeholder-stone-400 focus:border-primary-blue focus:ring-1 focus:ring-primary-blue rounded-xl',
       incomeColor: 'text-emerald-600',
       expenseColor: 'text-rose-600',
-      timelineLine: 'border-l-slate-200',
-      navGlass: 'bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm',
-      btnBack: 'text-blue-600 hover:text-blue-800',
-      btnBackMobile: 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+      timelineLine: 'border-l-amber-200',
+      navGlass: 'bg-cream-light/90 backdrop-blur-md border-b border-amber-200 shadow-sm',
+      btnBack: 'text-primary-blue hover:text-primary-blue-dark',
+      btnBackMobile: 'bg-white text-stone-700 border-amber-200 hover:bg-cream-light'
     }
   }
 })
+
+const modalInputClass = computed(() =>
+  isDarkMode.value
+    ? 'bg-black/20 border border-white/10 text-white placeholder-gray-500 focus:border-blue-500'
+    : 'bg-white border border-stone-300 text-stone-900 placeholder-stone-400 focus:border-primary-blue'
+)
+
+const modalInactiveTabClass = computed(() =>
+  isDarkMode.value
+    ? 'text-gray-300 hover:bg-white/10 hover:text-white'
+    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+)
 
 // --- 2. DATA TRANSAKSI (KOSONG DI AWAL, DIISI API) ---
 const transactions = ref([])
@@ -205,6 +217,28 @@ const summaryByCategory = computed(() => {
 
 // --- Arus Kas Bulanan: data per bulan dari transaksi ---
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
+// --- Grouped Transactions by Month (untuk Riwayat Transaksi) ---
+const groupedTransactions = computed(() => {
+  const groups = {}
+  transactions.value.forEach(t => {
+    const dateStr = t.date || ''
+    const match = dateStr.match(/^(\d{4})-(\d{2})/)
+    const key = match ? `${match[1]}-${match[2]}` : 'Lainnya'
+    if (!groups[key]) groups[key] = { key, label: '', items: [] }
+    if (match) {
+      const [y, mo] = [match[1], match[2]]
+      const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+      groups[key].label = `${monthNames[parseInt(mo, 10) - 1]} ${y}`
+    } else {
+      groups[key].label = 'Lainnya'
+    }
+    groups[key].items.push(t)
+  })
+  // Sort descending (terbaru dulu)
+  return Object.values(groups).sort((a, b) => b.key.localeCompare(a.key))
+})
+
 const monthlyCashFlow = computed(() => {
   const byMonth = {}
   transactions.value.forEach(t => {
@@ -357,9 +391,27 @@ const checkDuesStatus = async (memberNia) => {
   }
 }
 
-// Format Currency (Tetap sama)
+// Format Currency
 const formatIDR = (num) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num)
+}
+
+// Format Date: ubah ISO / YYYY-MM-DD menjadi "23 Mei 2026 • 11:19"
+const formatDate = (dateStr) => {
+  if (!dateStr) return '-'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    const bulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
+    const tgl = d.getDate()
+    const bln = bulan[d.getMonth()]
+    const thn = d.getFullYear()
+    const jam = String(d.getHours()).padStart(2, '0')
+    const mnt = String(d.getMinutes()).padStart(2, '0')
+    return `${tgl} ${bln} ${thn}  •  ${jam}:${mnt}`
+  } catch {
+    return dateStr
+  }
 }
 
 const displayDuesAmount = (item) => {
@@ -388,56 +440,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div :class="['min-h-screen relative overflow-hidden transition-colors duration-500', themeClasses.bg]">
-
-    <!-- BACKGROUND ANIMATION -->
-    <div class="fixed inset-0 pointer-events-none z-0">
-      <div
-        class="absolute top-0 left-1/4 w-96 h-96 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob transition-colors duration-500">
-      </div>
-      <div
-        class="absolute bottom-0 right-1/4 w-96 h-96 bg-amber-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 transition-colors duration-500">
-      </div>
-    </div>
-
-    <!-- NAVBAR GLASS -->
-    <nav :class="['sticky top-0 z-40 transition-all duration-300', themeClasses.navGlass]">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-20">
-          <div class="flex items-center gap-3">
-            <button @click="goBackToMenu" :class="['transition-colors', themeClasses.btnBack]">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M10 19l-7-7m0 0l7-7m7 7V5a3 3 0 01-3 3h-4M3 8h4a3 3 0 013 3v8a3 3 0 01-3 3h-4a3 3 0 01-3-3V8z">
-                </path>
-              </svg>
-            </button>
-            <div class="flex items-center gap-3 cursor-default">
-              <div
-                class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-amber-500/30">
-                F
-              </div>
-              <div>
-                <h1 :class="['font-bold text-xl tracking-wide', themeClasses.text]">
-                  HMTI <span class="font-light opacity-70">FINANCE</span>
-                </h1>
-              </div>
-            </div>
-          </div>
-          <div class="flex items-center gap-4">
-            <button @click="themeStore.toggleTheme()" class="p-2 rounded-full hover:bg-white/10 transition">
-              <span v-if="isDarkMode">☀️</span><span v-else>🌙</span>
-            </button>
-            <button @click="handleLogout"
-              class="text-sm font-bold px-4 py-2 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white transition">
-              KELUAR
-            </button>
-          </div>
-        </div>
-      </div>
-    </nav>
-    <SpeedDialNav />
+  <AdminPageLayout section="FINANCE" accent="amber" variant="rounded" logout-message="Keluar dari modul keuangan?">
 
     <!-- MAIN CONTENT -->
     <main class="relative z-10 max-w-7xl mx-auto px-4 py-8 space-y-8">
@@ -450,11 +453,11 @@ onMounted(() => {
             'text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text mb-2 leading-tight md:leading-tight break-words whitespace-normal',
             isDarkMode
               ? 'bg-gradient-to-r from-amber-300 via-white to-amber-200'
-              : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-800'
+              : 'bg-gradient-to-r from-primary-blue via-accent-orange to-accent-orange'
           ]">
             Manajemen Keuangan
           </h1>
-          <p class="text-blue-200 text-lg font-light">Pusat data dan informasi arus kas HMTI.</p>
+          <p :class="['text-lg font-light', themeClasses.textMuted]">Pusat data dan informasi arus kas HMTI.</p>
         </div>
         <div class="flex flex-col items-end gap-3">
           <button @click="goBackToMenu"
@@ -464,82 +467,199 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 1. TOP STATS CARDS (GRID 3 KOLOM) -->
+      <!-- 1. TOP STATS CARDS — Layout 2:1 (Chart Besar + 2 Card Padat) -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-        <!-- CARD 1: TOTAL SALDO (GLOW) -->
-        <div :class="['p-6 rounded-2xl relative overflow-hidden group', themeClasses.cardGlass]">
-          <div
-            class="absolute -right-4 -top-4 w-24 h-24 bg-blue-500 rounded-full blur-2xl opacity-20 group-hover:opacity-40 transition">
-          </div>
-          <div class="relative z-10">
-            <h3 :class="['text-sm font-bold uppercase tracking-wider mb-2', themeClasses.textMuted]">Total Saldo Aktif
-            </h3>
-            <div :class="['text-3xl md:text-4xl font-extrabold', themeClasses.text]">
-              {{ formatIDR(stats.balance) }}
-            </div>
-            <div class="mt-2 text-xs flex items-center gap-1"
-              :class="stats.balance >= 0 ? 'text-emerald-400' : 'text-rose-400'">
-              <span class="inline-block w-2 h-2 rounded-full"
-                :class="stats.balance >= 0 ? 'bg-emerald-400' : 'bg-rose-400'"></span>
-              {{ stats.balance >= 0 ? 'Kas Sehat' : 'Defisit' }}
-            </div>
-          </div>
-        </div>
+        <!-- CARD ARUS KAS — 2/3 lebar -->
+        <div :class="['md:col-span-2 p-6 rounded-2xl relative overflow-hidden flex flex-col', themeClasses.cardGlass]">
+          <!-- Decorative bg blur -->
+          <div class="absolute -left-8 -bottom-8 w-48 h-48 rounded-full blur-3xl opacity-10 pointer-events-none"
+            :class="isDarkMode ? 'bg-amber-400' : 'bg-blue-400'"></div>
 
-        <!-- CARD 2: LINE CHART (VISUAL DUMMY) -->
-        <div
-          :class="['p-6 rounded-2xl relative overflow-hidden flex flex-col justify-between', themeClasses.cardGlass]">
-          <div class="flex justify-between items-center mb-2">
-            <h3 :class="['text-sm font-bold uppercase tracking-wider', themeClasses.textMuted]">Arus Kas (Bulanan)</h3>
-            <span class="text-xs px-2 py-0.5 rounded"
-              :class="monthlySummary.trend === 'naik' ? 'bg-emerald-500/20 text-emerald-400' : monthlySummary.trend === 'turun' ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-500/20 text-slate-400'">
-              {{ monthlySummary.trend === 'naik' ? 'Trend Naik' : monthlySummary.trend === 'turun' ? 'Trend Turun' :
-              'Netral' }}
+          <!-- Header -->
+          <div class="flex justify-between items-center mb-5 relative z-10">
+            <div>
+              <h3 :class="['text-base font-extrabold uppercase tracking-widest', themeClasses.textMuted]">Arus Kas Bulanan</h3>
+              <p :class="['text-xs mt-0.5', themeClasses.textMuted]">6 bulan terakhir — hover batang untuk detail</p>
+            </div>
+            <span class="text-xs font-bold px-3 py-1 rounded-full"
+              :class="monthlySummary.trend === 'naik'
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                : monthlySummary.trend === 'turun'
+                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                  : 'bg-slate-500/20 text-slate-400 border border-slate-500/30'">
+              {{ monthlySummary.trend === 'naik' ? '↑ Trend Naik' : monthlySummary.trend === 'turun' ? '↓ Trend Turun' : '→ Netral' }}
             </span>
           </div>
-          <!-- Grafik batang: 6 bulan terakhir, Masuk (hijau) vs Keluar (merah) -->
-          <div class="flex items-end gap-1 sm:gap-2 h-24 mt-2" v-if="monthlyCashFlow.length > 0">
-            <div v-for="m in monthlyCashFlow" :key="m.key" class="flex-1 flex flex-col items-center gap-1 min-w-0">
-              <div class="w-full h-14 flex gap-0.5 justify-center items-end">
-                <div class="w-2 sm:w-3 rounded-t bg-emerald-500/90 min-h-[3px] transition-all duration-300"
-                  :style="{ height: Math.max(2, m.heightIncome) + '%' }" :title="'Masuk: ' + formatIDR(m.income)"></div>
-                <div class="w-2 sm:w-3 rounded-t bg-rose-500/90 min-h-[3px] transition-all duration-300"
-                  :style="{ height: Math.max(2, m.heightExpense) + '%' }" :title="'Keluar: ' + formatIDR(m.expense)">
+
+          <!-- Bar Chart Area -->
+          <div class="relative z-10 flex-1">
+            <div v-if="monthlyCashFlow.length > 0" class="flex items-end gap-3 h-44">
+              <div
+                v-for="m in monthlyCashFlow" :key="m.key"
+                class="chart-bar-group flex-1 flex flex-col items-center gap-1.5 min-w-0 group/bar cursor-pointer"
+              >
+                <!-- Tooltip -->
+                <div class="chart-tooltip hidden group-hover/bar:flex flex-col items-center absolute -top-20 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                  <div :class="['px-3 py-2 rounded-xl text-xs font-semibold shadow-xl whitespace-nowrap border',
+                    isDarkMode ? 'bg-slate-800 border-white/20 text-white' : 'bg-white border-slate-200 text-slate-800 shadow-slate-200/80']">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      <span>Masuk: <strong>{{ formatIDR(m.income) }}</strong></span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                      <span>Keluar: <strong>{{ formatIDR(m.expense) }}</strong></span>
+                    </div>
+                  </div>
+                  <div :class="['w-2.5 h-2.5 rotate-45 -mt-1.5 border-r border-b',
+                    isDarkMode ? 'bg-slate-800 border-white/20' : 'bg-white border-slate-200']"></div>
                 </div>
+
+                <!-- Bar Pair -->
+                <div class="w-full h-36 flex gap-1.5 justify-center items-end relative">
+                  <!-- Bar Masuk -->
+                  <div
+                    class="chart-bar flex-1 rounded-t-lg min-h-[4px] transition-all duration-500 ease-out relative overflow-hidden group-hover/bar:brightness-125"
+                    :class="isDarkMode ? 'bg-emerald-500' : 'bg-emerald-500'"
+                    :style="{ height: Math.max(3, m.heightIncome) + '%', transitionDelay: '100ms' }"
+                  >
+                    <div class="absolute inset-0 bg-gradient-to-t from-transparent to-white/20"></div>
+                  </div>
+                  <!-- Bar Keluar -->
+                  <div
+                    class="chart-bar flex-1 rounded-t-lg min-h-[4px] transition-all duration-500 ease-out relative overflow-hidden group-hover/bar:brightness-125"
+                    :class="isDarkMode ? 'bg-rose-500' : 'bg-rose-500'"
+                    :style="{ height: Math.max(3, m.heightExpense) + '%', transitionDelay: '200ms' }"
+                  >
+                    <div class="absolute inset-0 bg-gradient-to-t from-transparent to-white/20"></div>
+                  </div>
+                </div>
+
+                <!-- Label Bulan -->
+                <span :class="['text-xs font-bold truncate w-full text-center', themeClasses.textMuted]">{{ m.label }}</span>
               </div>
-              <span :class="['text-[10px] font-medium truncate w-full text-center', themeClasses.textMuted]">{{ m.label
-                }}</span>
+            </div>
+            <div v-else class="h-44 flex items-center justify-center" :class="themeClasses.textMuted">
+              <div class="text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 mx-auto mb-2 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                <p class="text-sm">Belum ada data transaksi per bulan.</p>
+              </div>
             </div>
           </div>
-          <div v-else class="h-20 flex items-center justify-center" :class="themeClasses.textMuted">
-            <span class="text-xs">Belum ada data transaksi per bulan.</span>
-          </div>
-          <!-- Ringkasan penting -->
-          <div class="flex justify-between text-xs mt-3 pt-3 border-t gap-2 flex-wrap"
+
+          <!-- Footer Legend + Ringkasan -->
+          <div class="flex flex-wrap justify-between items-center gap-4 mt-5 pt-4 border-t relative z-10"
             :class="isDarkMode ? 'border-white/10' : 'border-slate-200'">
-            <span><span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1"></span> Masuk: <strong
-                :class="themeClasses.text">{{ formatIDR(monthlySummary.totalIn) }}</strong></span>
-            <span><span class="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 mr-1"></span> Keluar: <strong
-                :class="themeClasses.text">{{ formatIDR(monthlySummary.totalOut) }}</strong></span>
+            <div class="flex items-center gap-4">
+              <span class="flex items-center gap-2 text-sm font-semibold">
+                <span class="w-3 h-3 rounded-sm bg-emerald-500 inline-block"></span>
+                <span :class="themeClasses.textMuted">Masuk</span>
+              </span>
+              <span class="flex items-center gap-2 text-sm font-semibold">
+                <span class="w-3 h-3 rounded-sm bg-rose-500 inline-block"></span>
+                <span :class="themeClasses.textMuted">Keluar</span>
+              </span>
+            </div>
+            <div class="flex gap-5 text-sm">
+              <span :class="['font-bold', themeClasses.incomeColor]">+{{ formatIDR(monthlySummary.totalIn) }}</span>
+              <span :class="['font-bold', themeClasses.expenseColor]">−{{ formatIDR(monthlySummary.totalOut) }}</span>
+            </div>
           </div>
         </div>
 
-        <!-- CARD 3: PIE CHART (VISUAL DUMMY) -->
-        <div
-          :class="['p-6 rounded-2xl relative overflow-hidden flex items-center justify-between', themeClasses.cardGlass]">
-          <div>
-            <h3 :class="['text-sm font-bold uppercase tracking-wider mb-1', themeClasses.textMuted]">Perbandingan</h3>
-            <div class="flex gap-2 text-xs mt-2">
-              <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Masuk</div>
-              <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Keluar</div>
+        <!-- RIGHT COLUMN: 2 card padat stacked -->
+        <div class="flex flex-col gap-4">
+
+          <!-- CARD TOTAL SALDO -->
+          <div :class="['p-5 rounded-2xl relative group flex-1', themeClasses.cardGlass]">
+            <div class="absolute -right-3 -top-3 w-20 h-20 rounded-full blur-2xl overflow-hidden opacity-20 group-hover:opacity-40 transition pointer-events-none"
+              :class="stats.balance >= 0 ? 'bg-emerald-400' : 'bg-rose-400'"></div>
+            <div class="relative z-10">
+              <p :class="['text-xs font-bold uppercase tracking-widest mb-2', themeClasses.textMuted]">Total Saldo Aktif</p>
+              <div :class="['text-2xl md:text-3xl font-extrabold leading-tight', themeClasses.text]">
+                {{ formatIDR(stats.balance) }}
+              </div>
+              <div class="mt-3 flex items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                  :class="stats.balance >= 0
+                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'">
+                  <span class="w-1.5 h-1.5 rounded-full inline-block"
+                    :class="stats.balance >= 0 ? 'bg-emerald-400' : 'bg-rose-400'"></span>
+                  {{ stats.balance >= 0 ? 'Kas Sehat' : 'Defisit' }}
+                </span>
+              </div>
+              <!-- Mini income vs expense bars -->
+              <div class="mt-4 space-y-3 pb-2">
+                <div>
+                  <div class="flex justify-between text-xs mb-1.5" :class="themeClasses.textMuted">
+                    <span>Pemasukan</span>
+                    <span :class="themeClasses.incomeColor">{{ formatIDR(stats.totalIncome) }}</span>
+                  </div>
+                  <div class="h-1.5 rounded-full" :class="isDarkMode ? 'bg-white/10' : 'bg-slate-200'">
+                    <div class="h-full rounded-full bg-emerald-500 transition-all duration-700"
+                      :style="{ width: stats.incomePercent + '%' }"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex justify-between text-xs mb-1.5" :class="themeClasses.textMuted">
+                    <span>Pengeluaran</span>
+                    <span :class="themeClasses.expenseColor">{{ formatIDR(stats.totalExpense) }}</span>
+                  </div>
+                  <div class="h-1.5 rounded-full" :class="isDarkMode ? 'bg-white/10' : 'bg-slate-200'">
+                    <div class="h-full rounded-full bg-rose-500 transition-all duration-700"
+                      :style="{ width: (100 - stats.incomePercent) + '%' }"></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <!-- CSS Pie Chart Visual -->
-          <div class="w-16 h-16 rounded-full relative"
-            :style="`background: conic-gradient(#10b981 0% ${stats.incomePercent || 0}%, #f43f5e ${stats.incomePercent || 0}% 100%)`">
-            <div class="absolute inset-2 m-auto rounded-full" :class="isDarkMode ? 'bg-slate-800' : 'bg-white'"></div>
+
+          <!-- CARD PERBANDINGAN -->
+          <div :class="['p-5 rounded-2xl relative overflow-hidden group flex-1', themeClasses.cardGlass]">
+            <div class="absolute -right-3 -bottom-3 w-20 h-20 rounded-full blur-2xl opacity-15 group-hover:opacity-30 transition pointer-events-none bg-indigo-400"></div>
+            <div class="relative z-10 flex flex-col h-full">
+              <p :class="['text-xs font-bold uppercase tracking-widest mb-3', themeClasses.textMuted]">Perbandingan Kas</p>
+              <div class="flex items-center gap-5 flex-1">
+                <!-- Donut Chart CSS -->
+                <div class="relative flex-shrink-0">
+                  <div class="w-20 h-20 rounded-full transition-all duration-700"
+                    :style="`background: conic-gradient(#10b981 0% ${stats.incomePercent || 0}%, #f43f5e ${stats.incomePercent || 0}% 100%)`">
+                  </div>
+                  <div class="absolute inset-2.5 rounded-full flex items-center justify-center"
+                    :class="isDarkMode ? 'bg-slate-800' : 'bg-white'">
+                    <span :class="['text-xs font-extrabold', themeClasses.text]">{{ Math.round(stats.incomePercent || 0) }}%</span>
+                  </div>
+                </div>
+                <!-- Legend -->
+                <div class="flex flex-col gap-2.5 flex-1 min-w-0">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="flex items-center gap-1.5 text-xs font-semibold" :class="themeClasses.textMuted">
+                      <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500 flex-shrink-0"></span>Masuk
+                    </span>
+                    <span :class="['text-xs font-extrabold', themeClasses.incomeColor]">{{ Math.round(stats.incomePercent || 0) }}%</span>
+                  </div>
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="flex items-center gap-1.5 text-xs font-semibold" :class="themeClasses.textMuted">
+                      <span class="w-2.5 h-2.5 rounded-sm bg-rose-500 flex-shrink-0"></span>Keluar
+                    </span>
+                    <span :class="['text-xs font-extrabold', themeClasses.expenseColor]">{{ Math.round(100 - (stats.incomePercent || 0)) }}%</span>
+                  </div>
+                  <div class="flex items-center justify-between gap-2 pt-2 border-t"
+                    :class="isDarkMode ? 'border-white/10' : 'border-slate-200'">
+                    <span class="text-xs font-semibold" :class="themeClasses.textMuted">Net</span>
+                    <span :class="['text-xs font-extrabold', stats.balance >= 0 ? themeClasses.incomeColor : themeClasses.expenseColor]">
+                      {{ stats.balance >= 0 ? '+' : '' }}{{ formatIDR(stats.balance) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+
         </div>
       </div>
 
@@ -553,46 +673,98 @@ onMounted(() => {
             <button class="text-sm text-blue-500 hover:underline">Lihat Semua</button>
           </div>
 
-          <!-- Timeline Container -->
-          <div class="relative pl-4 border-l-2" :class="themeClasses.timelineLine">
+          <!-- Timeline Container: Grouped by Month -->
+          <div v-if="groupedTransactions.length === 0" :class="['text-center py-10 opacity-60', themeClasses.textMuted]">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+            <p class="text-base font-medium">Belum ada riwayat transaksi.</p>
+          </div>
 
-            <div v-for="(t, index) in transactions" :key="t.id || index" class="mb-8 relative group">
-              <!-- Timeline Dot -->
-              <div class="absolute -left-[21px] top-4 w-3 h-3 rounded-full border-2 transition-colors" :class="[
-                isDarkMode ? 'bg-slate-900 border-slate-700 group-hover:border-blue-500' : 'bg-white border-slate-300 group-hover:border-blue-500',
-                t.type === 'in' ? 'shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'shadow-[0_0_10px_rgba(244,63,94,0.5)]'
-              ]"></div>
+          <div v-for="group in groupedTransactions" :key="group.key" class="mb-8">
 
-              <!-- Card Content -->
-              <div
-                :class="['p-4 rounded-xl border transition-all duration-300 hover:translate-x-2', themeClasses.cardContent]">
-                <div class="flex justify-between items-start">
-                  <div>
-                    <div class="flex items-center gap-2 mb-1">
-                      <span class="text-xs font-bold uppercase px-2 py-0.5 rounded text-white"
-                        :class="t.type === 'in' ? 'bg-emerald-500' : 'bg-rose-500'">
-                        {{ t.type === 'in' ? 'MASUK' : 'KELUAR' }}
-                      </span>
-                      <span :class="['text-xs font-mono', isDarkMode ? 'text-blue-200/90' : 'opacity-60']">{{ t.date
-                        }}</span>
+            <!-- ===== MONTH SEPARATOR ===== -->
+            <div class="flex items-center gap-3 mb-5 py-2">
+              <div class="flex items-center gap-2 px-4 py-2 rounded-full font-extrabold text-sm tracking-widest uppercase shadow-md"
+                :class="isDarkMode
+                  ? 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
+                  : 'bg-blue-600 text-white border border-blue-700 shadow-blue-200'"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {{ group.label }}
+              </div>
+              <div class="flex-1 h-0.5 rounded-full"
+                :class="isDarkMode ? 'bg-gradient-to-r from-amber-400/30 to-transparent' : 'bg-gradient-to-r from-blue-400/40 to-transparent'"
+              ></div>
+              <span class="text-xs font-bold px-2 py-1 rounded-full"
+                :class="isDarkMode ? 'bg-white/10 text-blue-200' : 'bg-blue-100 text-blue-700'"
+              >{{ group.items.length }} transaksi</span>
+            </div>
+
+            <!-- Transactions in this month (timeline) -->
+            <div class="relative pl-5 border-l-2" :class="themeClasses.timelineLine">
+              <div v-for="(t, index) in group.items" :key="t.id || index" class="mb-6 relative group">
+
+                <!-- Timeline Dot -->
+                <div class="absolute -left-[23px] top-5 w-4 h-4 rounded-full border-2 transition-all duration-200 flex items-center justify-center"
+                  :class="[
+                    isDarkMode ? 'bg-slate-900 border-slate-600 group-hover:border-blue-400' : 'bg-white border-slate-300 group-hover:border-blue-500',
+                    t.type === 'in' ? 'shadow-[0_0_12px_rgba(16,185,129,0.6)]' : 'shadow-[0_0_12px_rgba(244,63,94,0.6)]'
+                  ]">
+                  <div class="w-1.5 h-1.5 rounded-full" :class="t.type === 'in' ? 'bg-emerald-400' : 'bg-rose-400'"></div>
+                </div>
+
+                <!-- Card Content -->
+                <div :class="['p-5 rounded-2xl border transition-all duration-300 hover:translate-x-1 hover:shadow-md', themeClasses.cardContent]">
+                  <div class="flex justify-between items-start gap-4">
+
+                    <!-- LEFT: Info -->
+                    <div class="flex-1 min-w-0">
+
+                      <!-- Badge + Tanggal -->
+                      <div class="flex items-center gap-2.5 mb-3 flex-wrap">
+                        <span class="text-xs font-extrabold uppercase px-3 py-1 rounded-full text-white tracking-wider shadow-sm"
+                          :class="t.type === 'in' ? 'bg-emerald-500 shadow-emerald-500/30' : 'bg-rose-500 shadow-rose-500/30'">
+                          {{ t.type === 'in' ? '▲ MASUK' : '▼ KELUAR' }}
+                        </span>
+                        <!-- Tanggal: lebih besar, tegas, dan terbaca -->
+                        <span class="inline-flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-lg"
+                          :class="isDarkMode
+                            ? 'bg-white/10 text-blue-100 border border-white/15'
+                            : 'bg-slate-100 text-slate-700 border border-slate-300'">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 flex-shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                          </svg>
+                          {{ formatDate(t.date) }}
+                        </span>
+                      </div>
+
+                      <!-- Description -->
+                      <h4 :class="['font-extrabold text-lg leading-snug mb-2', themeClasses.text]">{{ t.desc || '-' }}</h4>
+
+                      <!-- Tags Kategori -->
+                      <div class="flex flex-wrap gap-2">
+                        <span class="text-sm font-semibold px-3 py-1 rounded-lg border"
+                          :class="isDarkMode ? 'border-blue-400/30 text-blue-300 bg-blue-500/10' : 'border-blue-300 text-blue-700 bg-blue-50'">
+                          # {{ t.category }}
+                        </span>
+                        <span v-if="t.subCategory" class="text-sm font-semibold px-3 py-1 rounded-lg border"
+                          :class="isDarkMode ? 'border-purple-400/30 text-purple-300 bg-purple-500/10' : 'border-purple-300 text-purple-700 bg-purple-50'">
+                          # {{ t.subCategory }}
+                        </span>
+                      </div>
                     </div>
-                    <h4 :class="['font-bold text-lg', themeClasses.text]">{{ t.desc }}</h4>
-                    <div class="flex gap-2 mt-2">
-                      <span class="text-xs px-2 py-1 rounded border"
-                        :class="isDarkMode ? 'border-white/10 text-blue-300' : 'border-slate-200 text-slate-600'">#{{
-                        t.category }}</span>
-                      <span v-if="t.subCategory" class="text-xs px-2 py-1 rounded border"
-                        :class="isDarkMode ? 'border-white/10 text-blue-300' : 'border-slate-200 text-slate-600'">#{{
-                        t.subCategory }}</span>
+
+                    <!-- RIGHT: Nominal -->
+                    <div class="text-right flex-shrink-0">
+                      <div :class="['font-extrabold text-xl md:text-2xl leading-tight', t.type === 'in' ? themeClasses.incomeColor : themeClasses.expenseColor]">
+                        {{ t.type === 'in' ? '+' : '−' }} {{ formatIDR(t.amount) }}
+                      </div>
                     </div>
-                  </div>
-                  <div class="text-right">
-                    <div
-                      :class="['font-bold text-xl', t.type === 'in' ? themeClasses.incomeColor : themeClasses.expenseColor]">
-                      {{ t.type === 'in' ? '+' : '-' }} {{ formatIDR(t.amount) }}
-                    </div>
+
                   </div>
                 </div>
+
               </div>
             </div>
 
@@ -749,11 +921,11 @@ onMounted(() => {
           <!-- Toggle Sumber Dana -->
           <div v-if="formType === 'in'" class="p-1 bg-black/20 rounded-lg flex text-sm font-medium">
             <button type="button" @click="incomeSource = 'anggota'"
-              :class="['flex-1 py-2 rounded-md transition-all', incomeSource === 'anggota' ? 'bg-blue-600 shadow text-white' : 'text-gray-400 hover:text-white']">
+              :class="['flex-1 py-2 rounded-md transition-all', incomeSource === 'anggota' ? 'bg-blue-600 shadow text-white' : modalInactiveTabClass]">
               Kas Anggota
             </button>
             <button type="button" @click="incomeSource = 'eksternal'"
-              :class="['flex-1 py-2 rounded-md transition-all', incomeSource === 'eksternal' ? 'bg-blue-600 shadow text-white' : 'text-gray-400 hover:text-white']">
+              :class="['flex-1 py-2 rounded-md transition-all', incomeSource === 'eksternal' ? 'bg-blue-600 shadow text-white' : modalInactiveTabClass]">
               Dana Eksternal
             </button>
           </div>
@@ -777,12 +949,11 @@ onMounted(() => {
           <div v-if="formType === 'in' && incomeSource === 'anggota'">
             <!-- Dropdown Pilih Anggota -->
             <div class="mb-4">
-              <label class="block text-xs font-bold uppercase mb-1 text-blue-700 dark:text-blue-300">Pilih
+              <label :class="['block text-xs font-bold uppercase mb-1', isDarkMode ? 'text-blue-300' : 'text-blue-700']">Pilih
                 Anggota</label>
               <select v-model="formData.targetNia" @change="checkDuesStatus(formData.targetNia)" :class="[
-                'w-full bg-black/20 border border-white/10 rounded-lg p-3 font-semibold',
-                isDarkMode ? 'text-white' : 'text-gray-900',
-                'placeholder-gray-400 focus:border-blue-500 outline-none cursor-pointer'
+                'w-full rounded-lg p-3 font-semibold outline-none cursor-pointer',
+                modalInputClass
               ]">
                 <option value="" disabled class="text-gray-500">Pilih anggota...</option>
                 <option v-for="m in membersList" :key="m.nia || m.id || m" :value="m.nia"
@@ -794,7 +965,7 @@ onMounted(() => {
             <div>
               <label class="block text-xs font-bold uppercase opacity-70 mb-1">Nominal (Rp)</label>
               <input type="number" v-model="formData.amount" placeholder="0"
-                class="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white placeholder-gray-500 focus:border-blue-500 outline-none">
+                :class="['w-full rounded-lg p-3 outline-none', modalInputClass]">
             </div>
             <!-- Hapus input kategori, kategori otomatis -->
             <input type="hidden" v-model="formData.category" value="Kas Anggota" />
@@ -804,19 +975,19 @@ onMounted(() => {
             <div>
               <label class="block text-xs font-bold uppercase opacity-70 mb-1">Nominal (Rp)</label>
               <input type="number" v-model="formData.amount" placeholder="0"
-                class="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white placeholder-gray-500 focus:border-blue-500 outline-none">
+                :class="['w-full rounded-lg p-3 outline-none', modalInputClass]">
             </div>
             <div>
               <label class="block text-xs font-bold uppercase opacity-70 mb-1">Kategori</label>
               <input type="text" v-model="formData.category" placeholder="Cth: Operasional"
-                class="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white placeholder-gray-500 focus:border-blue-500 outline-none">
+                :class="['w-full rounded-lg p-3 outline-none', modalInputClass]">
             </div>
           </div>
 
           <div>
             <label class="block text-xs font-bold uppercase opacity-70 mb-1">Keterangan</label>
             <textarea v-model="formData.desc" rows="2" placeholder="Deskripsi singkat..."
-              class="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white placeholder-gray-500 focus:border-blue-500 outline-none"></textarea>
+              :class="['w-full rounded-lg p-3 outline-none', modalInputClass]"></textarea>
           </div>
 
           <!-- Tombol Input Data -->
@@ -836,33 +1007,6 @@ onMounted(() => {
       </div>
 
     </div>
-  </div>
+  </AdminPageLayout>
 </template>
 
-<style>
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-}
-
-.animate-blob {
-  animation: blob 10s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-</style>

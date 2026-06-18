@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
-import SpeedDialNav from '../components/SpeedDialNav.vue'
+import AdminPageLayout from '../components/AdminPageLayout.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -52,40 +52,40 @@ const themeClasses = computed(() => {
     }
   } else {
     return {
-      bg: 'bg-gradient-to-br from-slate-100 via-blue-50 to-slate-200',
-      text: 'text-slate-900',
-      textMuted: 'text-slate-600',
-      gradientText: 'from-blue-600 via-indigo-600 to-blue-800',
-      nav: 'bg-white/80 backdrop-blur-md border-slate-200 text-slate-900 shadow-lg',
-      cardGlass: 'bg-white/90 backdrop-blur-md border-slate-200/60 hover:bg-white shadow-xl',
-      cardBorder: 'border-slate-200',
-      searchBar: 'bg-white/80 border-slate-200',
-      inputBg: 'bg-white/80 border-slate-300 text-slate-900 placeholder-slate-400 focus:ring-blue-500 focus:bg-white',
-      selectBg: 'bg-white/80 border-slate-300 text-slate-900',
-      tableWrap: 'bg-white ring-slate-200 shadow-xl',
-      tableHead: 'bg-slate-50 text-slate-700 border-slate-200',
-      tableHeadCell: 'text-slate-600',
-      tableBody: 'bg-white text-slate-700',
-      tableRowActive: 'bg-blue-50 hover:bg-blue-100',
-      tableRowInactive: 'bg-red-50/80 hover:bg-slate-50',
-      tableBorder: 'border-slate-100',
-      pagination: 'bg-slate-50 text-slate-600 border-slate-200',
-      paginationBtn: 'border-slate-300 text-slate-700 bg-white hover:bg-slate-50',
-      popupCard: 'bg-white border-slate-200 shadow-xl',
-      popupText: 'text-slate-900',
-      popupMuted: 'text-slate-500',
-      modalOverlay: 'bg-slate-900/50',
-      modalContent: 'bg-white border-slate-200',
-      modalForm: 'bg-slate-50',
-      modalLabel: 'text-gray-700',
-      modalInput: 'bg-white border-gray-300',
-      modalFooter: 'bg-gray-50',
-      modalCancel: 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50',
-      btnBack: 'text-blue-600 hover:text-blue-800',
-      btnBackMobile: 'bg-white/90 text-slate-700 border-slate-300',
-      restrictedCard: 'bg-slate-50 border-slate-200 border-dashed',
-      restrictedText: 'text-slate-500',
-      restrictedMuted: 'text-slate-400',
+      bg: 'bg-gradient-to-br from-cream-light via-cream to-cream-dark/30',
+      text: 'text-stone-900',
+      textMuted: 'text-stone-600',
+      gradientText: 'from-primary-blue via-accent-orange to-accent-orange',
+      nav: 'bg-cream-light/90 backdrop-blur-md border-amber-200 text-stone-900 shadow-md',
+      cardGlass: 'bg-white/95 backdrop-blur-md border-amber-200/70 hover:bg-white shadow-md hover:shadow-xl',
+      cardBorder: 'border-amber-200/70',
+      searchBar: 'bg-white/90 border-amber-200',
+      inputBg: 'bg-white border-stone-300 text-stone-900 placeholder-stone-400 focus:ring-primary-blue focus:bg-white',
+      selectBg: 'bg-white border-stone-300 text-stone-900',
+      tableWrap: 'bg-white ring-amber-200/60 shadow-xl',
+      tableHead: 'bg-cream-light text-stone-700 border-amber-200',
+      tableHeadCell: 'text-stone-600',
+      tableBody: 'bg-white text-stone-700',
+      tableRowActive: 'bg-primary-blue/5 hover:bg-primary-blue/10',
+      tableRowInactive: 'bg-red-50/80 hover:bg-stone-50',
+      tableBorder: 'border-amber-100',
+      pagination: 'bg-cream-light text-stone-600 border-amber-200',
+      paginationBtn: 'border-amber-200 text-stone-700 bg-white hover:bg-cream-light',
+      popupCard: 'bg-white border-amber-200 shadow-xl',
+      popupText: 'text-stone-900',
+      popupMuted: 'text-stone-500',
+      modalOverlay: 'bg-stone-900/50',
+      modalContent: 'bg-white border-amber-200',
+      modalForm: 'bg-cream-light',
+      modalLabel: 'text-stone-700',
+      modalInput: 'bg-white border-stone-300',
+      modalFooter: 'bg-cream-light',
+      modalCancel: 'border-stone-300 text-stone-700 bg-white hover:bg-cream-light',
+      btnBack: 'text-primary-blue hover:text-primary-blue-dark',
+      btnBackMobile: 'bg-white text-stone-700 border-amber-200',
+      restrictedCard: 'bg-cream-light border-amber-200 border-dashed',
+      restrictedText: 'text-stone-500',
+      restrictedMuted: 'text-stone-400',
     }
   }
 })
@@ -257,119 +257,28 @@ const goBackToMenu = () => {
   router.push('/admin')
 }
 
-// Data Member yang sedang di-hover (untuk floating card)
-const activeMember = ref(null)
-const showPopup = ref(false)
-const popupPosition = ref({ x: 0, y: 0 })
+// State untuk modal profil (detail lengkap anggota)
+const isProfileOpen = ref(false)
+const selectedMemberProfile = ref(null)
+const hoveredProfileNia = ref(null)
 
-// Saat kursor masuk ke baris: langsung tampilkan popup di dekat posisi mouse
-const startTimer = (member, event) => {
-  activeMember.value = member
-  updatePopupPosition(event)
-  showPopup.value = true
+const openProfilePopup = (member) => {
+  selectedMemberProfile.value = member
+  isProfileOpen.value = true
 }
 
-// Update posisi popup saat mouse bergerak di dalam baris
-const updatePopupPosition = (event) => {
-  if (!showPopup.value && !activeMember.value) return
-
-  const { clientX, clientY } = event
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-
-  // Perkiraan ukuran card (harus selaras dengan kelas w-80 & konten square image)
-  const cardWidth = 320 // px, w-80
-  const cardHeight = 320 + 96 // px (square image + teks & padding, kira-kira)
-  const margin = 20
-
-  let nextX = clientX + margin
-  let nextY = clientY + margin
-
-  // Jangan melewati sisi kanan layar
-  if (nextX + cardWidth > viewportWidth - margin) {
-    nextX = viewportWidth - cardWidth - margin
-  }
-
-  // Jangan melewati sisi bawah layar
-  if (nextY + cardHeight > viewportHeight - margin) {
-    nextY = viewportHeight - cardHeight - margin
-  }
-
-  // Hindari update yang terlalu sering (hanya jika berubah cukup besar)
-  if (
-    Math.abs(nextX - popupPosition.value.x) < 4 &&
-    Math.abs(nextY - popupPosition.value.y) < 4
-  ) {
-    return
-  }
-
-  popupPosition.value = { x: nextX, y: nextY }
-}
-
-// Saat kursor keluar dari baris: sembunyikan popup
-const stopTimer = () => {
-  showPopup.value = false
-  activeMember.value = null
+const closeProfilePopup = () => {
+  isProfileOpen.value = false
+  selectedMemberProfile.value = null
 }
 
 onMounted(() => { fetchMembers() })
 </script>
 
 <template>
-  <!-- BACKGROUND -->
-  <div :class="['min-h-screen p-4 md:p-8 relative overflow-hidden transition-colors duration-500', themeClasses.bg]">
-    <div :class="[
-      'absolute top-0 left-0 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob transition-colors duration-500',
-      isDarkMode ? 'bg-blue-500' : 'bg-blue-400'
-    ]"></div>
-    <div :class="[
-      'absolute top-0 right-0 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000 transition-colors duration-500',
-      isDarkMode ? 'bg-indigo-500' : 'bg-indigo-400'
-    ]"></div>
+  <AdminPageLayout section="ANGGOTA" accent="blue" variant="rounded" logout-message="Keluar dari Manajemen Anggota?">
 
-    <!-- NAVBAR -->
-    <nav :class="['border-b sticky top-0 z-40 shadow-2xl rounded-2xl mb-8 transition-all duration-300', themeClasses.nav, isDarkMode ? 'border-white/10' : 'border-slate-200']">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center gap-3">
-            <button @click="goBackToMenu" :class="['transition-colors', themeClasses.btnBack]">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M10 19l-7-7m0 0l7-7m7 7V5a3 3 0 01-3 3h-4M3 8h4a3 3 0 013 3v8a3 3 0 01-3 3h-4a3 3 0 01-3-3V8z">
-                </path>
-              </svg>
-            </button>
-            <div :class="['font-bold text-xl tracking-wide bg-clip-text text-transparent bg-gradient-to-r', isDarkMode ? 'from-blue-200 to-white' : 'from-blue-600 to-slate-900']">
-              HMTI <span :class="['font-light', isDarkMode ? 'text-blue-200' : 'text-blue-600']">ADMIN</span>
-            </div>
-          </div>
-          <div class="flex items-center gap-4">
-            <!-- Theme Toggle -->
-            <button @click="themeStore.toggleTheme()" :class="[
-              'p-2 rounded-full transition-all duration-300 hover:scale-110',
-              isDarkMode ? 'bg-white/10 text-yellow-400 hover:bg-white/20' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-            ]" title="Ganti Tema">
-              <svg v-if="isDarkMode" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            </button>
-            <div class="hidden md:block text-right">
-              <div :class="['text-sm font-bold', themeClasses.text]">{{ authStore.user ? authStore.user.name : 'User' }}</div>
-              <div :class="['text-xs capitalize', themeClasses.textMuted]">{{ authStore.user ? authStore.user.role : 'Guest' }}</div>
-            </div>
-            <button @click="handleLogout"
-              class="bg-red-500/80 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">KELUAR</button>
-          </div>
-        </div>
-      </div>
-    </nav>
-    <SpeedDialNav />
-
-    <div class="relative z-10 max-w-7xl mx-auto space-y-8">
+    <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
 
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -473,8 +382,8 @@ onMounted(() => { fetchMembers() })
           <table class="min-w-full leading-normal">
             <thead class="sticky top-0 z-10 shadow-md">
               <tr :class="['border-b', themeClasses.tableHead]">
-                <!-- HEADER AKSI: SAMA DIHIDUPKAN JIKA TIDAK BISA MANAGE -->
-                <th v-if="canManageData"
+                <!-- HEADER AKSI -->
+                <th
                   :class="['px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Aksi
                 </th>
                 <th :class="['px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">NIA</th>
@@ -490,22 +399,36 @@ onMounted(() => { fetchMembers() })
                 v-for="member in paginatedMembers"
                 :key="member.nia"
                 :class="[
-                  'transition duration-150 ease-in-out border-b last:border-b-0',
+                  'transition duration-200 ease-in-out border-b last:border-b-0 origin-center',
                   themeClasses.tableBorder,
                   member.status === 'Aktif'
                     ? themeClasses.tableRowActive
-                    : themeClasses.tableRowInactive
+                    : themeClasses.tableRowInactive,
+                  hoveredProfileNia === member.nia ? 'scale-[1.015] shadow-lg z-10 relative bg-blue-100/30 backdrop-blur-sm' : ''
                 ]"
-                @mouseenter="startTimer(member, $event)"
-                @mousemove="updatePopupPosition($event)"
-                @mouseleave="stopTimer"
               >
 
                 <!-- KOLOM AKSI -->
-                <td v-if="canManageData" class="px-6 py-4 whitespace-nowrap">
+                <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center gap-2">
-                    <!-- Tombol Edit (lebih tegas, biru sesuai tema) -->
+                    <!-- Tombol Profil (Menampilkan Foto Anggota) -->
                     <button
+                      @click="openProfilePopup(member)"
+                      @mouseenter="hoveredProfileNia = member.nia"
+                      @mouseleave="hoveredProfileNia = null"
+                      class="inline-flex items-center justify-center w-10 h-10 rounded-full border border-blue-200 shadow-sm overflow-hidden hover:border-blue-500 hover:scale-110 active:scale-95 transition-all duration-200 bg-white"
+                      aria-label="Lihat profil"
+                      title="Lihat profil"
+                    >
+                      <img
+                        :src="member.official_photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=0D8ABC&color=fff&size=80`"
+                        alt="Avatar"
+                        class="w-full h-full object-cover"
+                      />
+                    </button>
+                    <!-- Tombol Edit (lebih tegas, biru sesuai tema) - Hanya jika bisa manage -->
+                    <button
+                      v-if="canManageData"
                       @click="editMember(member)"
                       class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-sm border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-colors duration-150"
                       aria-label="Edit anggota"
@@ -526,8 +449,9 @@ onMounted(() => { fetchMembers() })
                         />
                       </svg>
                     </button>
-                    <!-- Tombol Hapus (lebih tegas, merah kontras) -->
+                    <!-- Tombol Hapus (lebih tegas, merah kontras) - Hanya jika bisa manage -->
                     <button
+                      v-if="canManageData"
                       @click="deleteMember(member.nia)"
                       class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-sm border border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 transition-colors duration-150"
                       aria-label="Hapus anggota"
@@ -566,9 +490,9 @@ onMounted(() => { fetchMembers() })
                 <td class="px-6 py-5 text-sm text-slate-700">{{ member.angkatan }}</td>
               </tr>
 
-              <!-- COLOSPAN DINAMIS: HITUNG JUMLAH KOLOM (AKSI = 1, LAINNYA = 6) -->
+              <!-- COLOSPAN DINAMIS: SEKARANG SELALU 7 KOLOM -->
               <tr v-if="paginatedMembers.length === 0">
-                <td :colspan="canManageData ? 7 : 6"
+                <td :colspan="7"
                   class="px-6 py-10 text-center text-slate-500 font-medium">
                   Belum ada data anggota.
                 </td>
@@ -577,41 +501,112 @@ onMounted(() => { fetchMembers() })
           </table>
         </div> <!-- Tutup tag tabel -->
         
-        <!-- Floating card yang mengikuti posisi kursor -->
-        <div
-          v-if="showPopup && activeMember"
-          class="fixed z-50 pointer-events-none"
-          :style="{ top: popupPosition.y + 'px', left: popupPosition.x + 'px' }"
-        >
-          <div :class="['w-80 rounded-2xl shadow-2xl border overflow-hidden transform transition-all duration-200', themeClasses.popupCard]">
-            <!-- Foto 1:1 (square) -->
-            <div class="w-full bg-gray-200">
-              <div class="w-full aspect-square">
-                <img
-                  :src="activeMember.official_photo_url || 'https://via.placeholder.com/400'"
-                  alt="Foto anggota"
-                  class="w-full h-full object-cover"
+        <!-- Detail Profile Card Pop-up Modal -->
+        <Transition name="fade">
+          <div v-if="isProfileOpen && selectedMemberProfile" class="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <!-- Backdrop -->
+            <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="closeProfilePopup"></div>
+
+            <!-- Modal Content -->
+            <Transition name="modal-zoom">
+              <div 
+                v-if="isProfileOpen" 
+                :class="['relative w-full max-w-4xl rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 transform flex flex-col md:flex-row', isDarkMode ? 'bg-slate-900 text-white border-white/10' : 'bg-white text-slate-900 border-slate-200']"
+              >
+                <!-- Close Button (Top Right of entire modal) -->
+                <button 
+                  @click="closeProfilePopup" 
+                  class="absolute top-4 right-4 z-20 text-gray-400 hover:text-gray-600 dark:hover:text-white bg-slate-500/15 hover:bg-slate-500/30 p-2 rounded-full transition-all duration-150"
                 >
+                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+
+                <!-- LEFT SIDE: Profile Photo & Key Info -->
+                <div class="w-full md:w-96 flex flex-col items-center justify-center p-8 border-b md:border-b-0 md:border-r" :class="isDarkMode ? 'bg-slate-950/40 border-white/5' : 'bg-slate-50 border-slate-200/60'">
+                  <!-- Avatar -->
+                  <div class="w-64 h-64 rounded-2xl p-1 shadow-xl bg-white" :class="isDarkMode ? 'bg-slate-800 border-2 border-slate-700' : 'bg-white border-2 border-slate-200'">
+                    <img 
+                      :src="selectedMemberProfile.official_photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedMemberProfile.name)}&background=0D8ABC&color=fff&size=256`" 
+                      alt="Profile Avatar" 
+                      class="w-full h-full rounded-xl object-cover"
+                    />
+                  </div>
+
+                  <!-- Name & Title -->
+                  <div class="mt-6 text-center">
+                    <h3 class="text-xl font-black tracking-tight" :class="isDarkMode ? 'text-white' : 'text-slate-900'">
+                      {{ selectedMemberProfile.name }}
+                    </h3>
+                    <p class="text-xs font-bold uppercase tracking-wider text-blue-500 mt-1.5">
+                      {{ selectedMemberProfile.jabatan }}
+                    </p>
+                    <div class="mt-3 inline-block text-xs font-bold px-3 py-1 rounded-full"
+                         :class="selectedMemberProfile.status === 'Aktif' ? 'bg-emerald-500/25 text-emerald-400' : 'bg-slate-500/25 text-slate-500'">
+                      {{ selectedMemberProfile.status }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- RIGHT SIDE: Detailed Metadata -->
+                <div class="flex-1 p-8 flex flex-col justify-between">
+                  <div>
+                    <div class="mb-6">
+                      <span class="text-xs font-black uppercase tracking-widest text-blue-500 dark:text-blue-400">Detail Anggota</span>
+                    </div>
+
+                    <!-- Details Grid -->
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                      <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">NIA</div>
+                        <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.nia }}</div>
+                      </div>
+                      <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">NPM</div>
+                        <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.npm || '-' }}</div>
+                      </div>
+                      <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Hak Akses (Role)</div>
+                        <div class="font-semibold mt-0.5 capitalize" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.role }}</div>
+                      </div>
+                      <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Angkatan</div>
+                        <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.angkatan }}</div>
+                      </div>
+                      <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10 col-span-2">
+                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Tanggal Bergabung</div>
+                        <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">
+                          {{ new Date(selectedMemberProfile.joinedAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Contact Info -->
+                    <div class="mt-4 p-4 rounded-xl bg-slate-500/5 border border-slate-500/10 space-y-2 text-sm">
+                      <div class="flex items-center gap-3">
+                        <span class="opacity-60 text-base">📧</span>
+                        <span class="font-medium truncate" :class="isDarkMode ? 'text-white' : 'text-slate-850'">{{ selectedMemberProfile.email || 'Email belum diatur' }}</span>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <span class="opacity-60 text-base">📞</span>
+                        <span class="font-medium" :class="isDarkMode ? 'text-white' : 'text-slate-850'">{{ selectedMemberProfile.phone || 'Nomor HP belum diatur' }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Bio -->
+                  <div class="mt-6 p-4 rounded-xl bg-slate-500/5 border border-slate-500/10 text-sm">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1">Bio Singkat</div>
+                    <p class="italic leading-relaxed text-xs" :class="isDarkMode ? 'text-slate-300/80' : 'text-slate-500'">
+                      "{{ selectedMemberProfile.bio || 'Anggota ini belum menulis bio singkat.' }}"
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <!-- Detail anggota -->
-            <div class="p-4 space-y-1">
-              <div :class="['text-sm font-bold truncate', themeClasses.popupText]">
-                {{ activeMember.name }}
-              </div>
-              <div :class="['text-xs', themeClasses.popupMuted]">
-                NIA: {{ activeMember.nia }} • NPM: {{ activeMember.npm }}
-              </div>
-              <div :class="['text-xs', themeClasses.popupMuted]">
-                {{ activeMember.jabatan }} • {{ activeMember.angkatan }}
-              </div>
-              <div class="text-xs font-semibold mt-1"
-                   :class="activeMember.status === 'Aktif' ? 'text-emerald-600' : 'text-rose-600'">
-                Status: {{ activeMember.status }}
-              </div>
-            </div>
+            </Transition>
           </div>
-        </div>
+        </Transition>
 
         <!-- Pagination -->
         <div :class="['px-6 py-4 flex flex-col md:flex-row justify-between items-center text-sm border-t', themeClasses.pagination]">
@@ -767,33 +762,6 @@ onMounted(() => { fetchMembers() })
       </div>
     </div>
 
-  </div>
+  </AdminPageLayout>
 </template>
 
-<style>
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-</style>

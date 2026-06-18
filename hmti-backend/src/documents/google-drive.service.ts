@@ -29,9 +29,9 @@ export class GoogleDriveService {
       // Initialize cache if available
       if (NodeCache) {
         this.cache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
-        this.logger.log('✅ Cache enabled (node-cache)');
+        this.logger.log('[OK] Cache enabled (node-cache)');
       } else {
-        this.logger.warn('⚠️ Cache disabled (install node-cache for better performance)');
+        this.logger.warn('[WARN] Cache disabled (install node-cache for better performance)');
       }
     } catch (e) {
       this.logger.error('Gagal inisialisasi Drive');

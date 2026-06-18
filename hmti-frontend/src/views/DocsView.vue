@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
-import SpeedDialNav from '../components/SpeedDialNav.vue'
+import AdminPageLayout from '../components/AdminPageLayout.vue'
 import { uploadDocument, getDocuments, deleteDocument } from '../api/documentApi'
 
 const router = useRouter()
@@ -11,13 +11,13 @@ const authStore = useAuthStore()
 const themeStore = useThemeStore()
 
 // --- 1. STATE UTAMA ---
-const docs = ref([])           // Data dari database
-const mediaData = ref([])      // Inisialisasi array kosong agar tidak error
-const brandingData = ref([])   // Inisialisasi array kosong agar tidak error
+const docs = ref([])
 const isUploading = ref(false)
 const fileInput = ref(null)
 const activeTab = ref('surat')
 const searchQuery = ref('')
+const searchQueryMedia = ref('')
+const searchQueryBranding = ref('')
 const isDarkMode = computed(() => themeStore.isDarkMode)
 const allowedUploadRoles = ['ketum', 'bendahara', 'sekretaris']
 const canUpload = computed(() => allowedUploadRoles.includes(authStore.user?.role))
@@ -27,6 +27,54 @@ const currentPage = ref(1)
 const itemsPerPage = ref(20)
 const totalItems = ref(0)
 const totalPages = ref(0)
+
+// --- 1.5 PREVIEW STATE ---
+const selectedDoc = ref(null)
+const streamUrl = ref('')
+const loadingStream = ref(false)
+const previewVideoEl = ref(null)
+
+const renderType = computed(() => {
+  if (!selectedDoc.value) return null
+  const mime = selectedDoc.value.category || ''
+  return mime.startsWith('video/') ? 'video' : 'img'
+})
+
+const sanitizeText = (text) => {
+  if (!text) return ''
+  try {
+    return decodeURIComponent(encodeURIComponent(text))
+      .replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, '')
+  } catch (e) { return text }
+}
+
+const openPreview = (doc) => {
+  selectedDoc.value = doc
+  streamUrl.value = getDocumentUrl(doc, 'preview')
+}
+
+const openGoogleDrivePreview = (doc) => {
+  // Jika ada driveFileId, kita paksa buka Google Drive Previewer di tab baru
+  if (doc.driveFileId) {
+    window.open(`https://drive.google.com/file/d/${doc.driveFileId}/view`, '_blank');
+  } else if (doc.fileUrl) {
+    // Fallback jika driveFileId tidak ada
+    window.open(doc.fileUrl, '_blank');
+  } else {
+    alert('Link preview tidak tersedia.');
+  }
+}
+
+const closePreview = () => {
+  // Hanya reset video di preview modal, bukan semua video di halaman
+  if (previewVideoEl.value) {
+    previewVideoEl.value.pause()
+    previewVideoEl.value.src = ''
+    previewVideoEl.value.load()
+  }
+  selectedDoc.value = null
+  streamUrl.value = ''
+}
 
 // --- 2. API LOGIC ---
 const fetchDocs = async (page = 1) => {
@@ -110,14 +158,6 @@ const getDocumentUrl = (doc, action = 'preview') => {
 const isImage = (mimeType) => mimeType?.startsWith('image/')
 const isVideo = (mimeType) => mimeType?.startsWith('video/')
 
-const selectedDoc = ref(null)
-const openPreview = (doc) => {
-  selectedDoc.value = doc
-}
-const closePreview = () => {
-  selectedDoc.value = null
-}
-
 const openFilePicker = () => {
   fileInput.value?.click()
 }
@@ -135,11 +175,11 @@ const suratDocs = computed(() => {
 })
 
 const mediaDocs = computed(() => {
-  return filteredDocs.value.filter(d => d.type === 'MEDIA')
+  return docs.value.filter(d => d.type === 'MEDIA' && d.title.toLowerCase().includes(searchQueryMedia.value.toLowerCase()))
 })
 
 const brandingDocs = computed(() => {
-  return filteredDocs.value.filter(d => d.type === 'BRANDING')
+  return docs.value.filter(d => d.type === 'BRANDING' && d.title.toLowerCase().includes(searchQueryBranding.value.toLowerCase()))
 })
 
 const themeClasses = computed(() => {
@@ -152,23 +192,17 @@ const themeClasses = computed(() => {
     tabActive: 'bg-blue-600 text-white shadow-lg', tabInactive: 'bg-white/5 text-blue-200',
     btnBack: 'text-blue-200 hover:text-white', btnBackMobile: 'bg-white/10'
   } : {
-    bg: 'bg-slate-50', text: 'text-slate-900', textMuted: 'text-slate-500',
-    cardGlass: 'bg-white border border-slate-200 shadow-sm',
-    tableHead: 'bg-slate-50 text-slate-600', tableRow: 'hover:bg-slate-50 border-b border-slate-100',
-    navGlass: 'bg-white/80 border-b border-slate-200',
-    inputBg: 'bg-white border-slate-300 text-slate-900 focus:border-blue-500',
-    tabActive: 'bg-blue-600 text-white', tabInactive: 'bg-white text-slate-600 border border-slate-200',
-    btnBack: 'text-blue-600', btnBackMobile: 'bg-white'
+    bg: 'bg-cream', text: 'text-stone-900', textMuted: 'text-stone-500',
+    cardGlass: 'bg-white border border-amber-200/70 shadow-md hover:shadow-lg hover:border-primary-blue/20',
+    tableHead: 'bg-cream-light text-stone-600', tableRow: 'hover:bg-cream-light border-b border-amber-100',
+    navGlass: 'bg-cream-light/90 backdrop-blur-md border-b border-amber-200',
+    inputBg: 'bg-white border-stone-300 text-stone-900 focus:border-primary-blue',
+    tabActive: 'bg-gradient-to-r from-primary-blue to-accent-orange text-white', tabInactive: 'bg-white text-stone-600 border border-amber-200',
+    btnBack: 'text-primary-blue', btnBackMobile: 'bg-white border-amber-200'
   }
 })
 
 const goBackToMenu = () => router.push('/admin')
-const handleLogout = () => {
-  if (confirm('Keluar dari Pusat Dokumentasi?')) {
-    authStore.logout()
-    router.push('/')
-  }
-}
 
 // --- FUNGSI PREVIEW BARU ---
 const getPlaceholderImage = (mimeType) => {
@@ -186,66 +220,7 @@ const getPlaceholderImage = (mimeType) => {
 </script>
 
 <template>
-  <div :class="['min-h-screen relative overflow-hidden transition-colors duration-500', themeClasses.bg]">
-
-    <!-- BACKGROUND ANIMATION -->
-    <div class="fixed inset-0 pointer-events-none z-0">
-      <div
-        class="absolute top-0 left-1/4 w-96 h-96 bg-emerald-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob transition-colors duration-500">
-      </div>
-      <div
-        class="absolute bottom-0 right-1/4 w-96 h-96 bg-teal-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 transition-colors duration-500">
-      </div>
-    </div>
-
-    <!-- NAVBAR -->
-    <nav
-      :class="['sticky top-0 z-40 shadow-2xl rounded-b-2xl mb-8 transition-all duration-300', themeClasses.navGlass]">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center gap-3">
-            <button @click="goBackToMenu" :class="['transition-colors', themeClasses.btnBack]">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M10 19l-7-7m0 0l7-7m7 7V5a3 3 0 01-3 3h-4M3 8h4a3 3 0 013 3v8a3 3 0 01-3 3h-4a3 3 0 01-3-3V8z">
-                </path>
-              </svg>
-            </button>
-            <div :class="[
-              'font-bold text-xl tracking-wide bg-clip-text text-transparent',
-              isDarkMode
-                ? 'bg-gradient-to-r from-blue-200 to-white'
-                : 'bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-900'
-            ]">
-              HMTI
-              <span :class="[
-                'font-light',
-                isDarkMode ? 'text-blue-200' : 'text-blue-900'
-              ]">
-                DOCS
-              </span>
-            </div>
-          </div>
-          <div class="flex items-center gap-4">
-            <!-- Theme Toggle (sama seperti FinanceView) -->
-            <button @click="themeStore.toggleTheme()" class="p-2 rounded-full hover:bg-white/10 transition">
-              <span v-if="isDarkMode">☀️</span><span v-else>🌙</span>
-            </button>
-            <div class="hidden md:block text-right">
-              <div :class="['text-sm font-bold', themeClasses.text]">{{ authStore.user ? authStore.user.name : 'User' }}
-              </div>
-              <div :class="['text-xs capitalize', themeClasses.textMuted]">{{ authStore.user ? authStore.user.role :
-                'Guest' }}</div>
-            </div>
-            <!-- TOMBOL KELUAR (FISIK NYATA) -->
-            <button @click="handleLogout"
-              class="bg-red-500/80 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">KELUAR</button>
-          </div>
-        </div>
-      </div>
-    </nav>
-    <SpeedDialNav />
+  <AdminPageLayout section="DOCS" accent="emerald" variant="rounded" logout-message="Keluar dari Pusat Dokumentasi?">
 
     <!-- MAIN CONTENT -->
     <main class="relative z-10 max-w-7xl mx-auto px-4 py-8">
@@ -258,11 +233,11 @@ const getPlaceholderImage = (mimeType) => {
             'text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text mb-2 leading-tight md:leading-tight break-words whitespace-normal',
             isDarkMode
               ? 'bg-gradient-to-r from-emerald-300 via-white to-emerald-200'
-              : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-800'
+              : 'bg-gradient-to-r from-primary-blue via-accent-orange to-accent-orange'
           ]">
             Pusat Dokumentasi
           </h1>
-          <p class="text-blue-200 text-lg font-light">Kelola arsip, media, dan aset kreatif dalam satu tempat.</p>
+          <p :class="['text-lg font-light', themeClasses.textMuted]">Kelola arsip, media, dan aset kreatif dalam satu tempat.</p>
         </div>
 
         <div class="flex flex-col items-end gap-3">
@@ -316,7 +291,7 @@ const getPlaceholderImage = (mimeType) => {
               :class="['w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30', isUploading ? 'opacity-50 cursor-not-allowed' : '']">
               <span>{{ isUploading ? 'Memproses...' : 'Upload Dokumen' }}</span>
             </button>
-            <div v-else :class="['text-sm text-slate-400 rounded-xl p-3 border border-dashed', themeClasses.cardGlass]">
+            <div v-else :class="['text-sm rounded-xl p-3 border border-dashed', themeClasses.cardGlass, themeClasses.textMuted]">
               Hanya Ketua, Bendahara, dan Sekretaris yang dapat mengunggah dokumen.
             </div>
           </div>
@@ -324,8 +299,8 @@ const getPlaceholderImage = (mimeType) => {
 
         <div v-if="canUpload && !isUploading" @click="openFilePicker" @dragover.prevent @drop.prevent="handleFileUpload"
           class="mt-4 w-full p-8 border-2 border-dashed border-blue-400/30 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-blue-500/5 transition-all cursor-pointer">
-          <p class="text-blue-400 font-medium">Klik atau Drop file ke sini</p>
-          <p class="text-xs text-blue-400/60 text-center">Format: PDF, DOCX, PNG, JPG (Maks. 10MB)</p>
+          <p :class="['font-medium', isDarkMode ? 'text-blue-300' : 'text-blue-700']">Klik atau Drop file ke sini</p>
+          <p :class="['text-xs text-center', isDarkMode ? 'text-blue-300/70' : 'text-slate-500']">Format: PDF, DOCX, PNG, JPG (Maks. 10MB)</p>
         </div>
 
         <div :class="['rounded-2xl overflow-hidden border', themeClasses.cardGlass]">
@@ -345,21 +320,49 @@ const getPlaceholderImage = (mimeType) => {
                 <td class="px-6 py-4 font-medium">{{ index + 1 }}</td>
                 <td class="px-6 py-4">
                   <div class="font-bold">{{ l.title }}</div>
-                  <div class="text-xs opacity-60">{{ l.category }}</div>
+                  <div v-if="!l.driveFileId" class="flex items-center text-yellow-500 text-[10px] mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    ID Drive Hilang
+                  </div>
                 </td>
                 <td class="px-6 py-4">{{ new Date(l.uploadDate).toLocaleDateString('id-ID') }}</td>
                 <td class="px-6 py-4">
-                  <span class="px-2 py-1 rounded-md bg-blue-500/20 text-blue-300 text-xs">
+                  <span :class="['px-2 py-1 rounded-md text-[10px] font-bold uppercase', isDarkMode ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700']">
                     {{ l.uploader?.name || 'Sekretaris' }}
                   </span>
                 </td>
                 <td class="px-6 py-4 text-right">
-                  <div class="flex justify-end gap-3">
-                    <a :href="getDocumentUrl(l, 'preview')" target="_blank" class="text-blue-500 hover:text-blue-400 font-bold">Lihat Dokumen</a>
-              
-                    <a :href="getDocumentUrl(l, 'download')" target="_blank" class="text-emerald-400 hover:text-emerald-300 font-bold">Download</a>
-                    <button v-if="authStore.user?.role === 'sekretaris'" @click="deleteDoc(l.id)"
-                      class="text-red-400 hover:text-red-500">Hapus</button>
+                  <div class="flex justify-end items-center gap-1">
+                    <!-- Preview (for PDF/DOCX, open in new tab via Google Drive link; otherwise, use modal) -->
+                    <button @click="
+                      l.category === 'application/pdf' || l.category === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                        ? openGoogleDrivePreview(l)
+                        : openPreview(l)
+                    "
+                      :title="l.category === 'application/pdf' || l.category === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                        ? 'Preview di Google Drive' : 'Preview'"
+                      :class="['p-2 rounded-lg transition-all', isDarkMode ? 'text-blue-400 hover:bg-blue-500/15 hover:text-blue-300' : 'text-blue-600 hover:bg-blue-500/10 hover:text-blue-700']">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    <!-- Download -->
+                    <a :href="getDocumentUrl(l, 'download')" target="_blank" title="Download"
+                      :class="['p-2 rounded-lg transition-all', isDarkMode ? 'text-emerald-400 hover:bg-emerald-500/15 hover:text-emerald-300' : 'text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700']">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </a>
+                    <!-- Hapus (sekretaris only) — hapus DB + Google Drive -->
+                    <button v-if="canUpload" @click="deleteDoc(l.id)" title="Hapus (Drive + DB)"
+                      :class="['p-2 rounded-lg transition-all', isDarkMode ? 'text-red-400 hover:bg-red-500/15 hover:text-red-300' : 'text-red-500 hover:bg-red-500/10 hover:text-red-600']">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -373,23 +376,26 @@ const getPlaceholderImage = (mimeType) => {
 
             <!-- TAB 2: MEDIA -->
       <div v-if="activeTab === 'media'" class="space-y-6">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-          <div>
-            <h3 :class="['text-xl font-bold', themeClasses.text]">Galeri Event HMTI</h3>
-            <p :class="['text-sm', themeClasses.textMuted]">Dokumentasi visual setiap kegiatan himpunan.</p>
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div class="relative w-full md:w-1/2">
+            <input v-model="searchQueryMedia" type="text" placeholder="Cari Judul Media..."
+              :class="['w-full rounded-xl px-4 py-3 pl-12 outline-none transition-all', themeClasses.inputBg]" />
           </div>
-          <div>
+          <div class="w-full md:w-auto">
             <button v-if="canUpload" @click="openFilePicker" :disabled="isUploading"
-              :class="['px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/30', isUploading ? 'opacity-50' : '']">
-              <span>{{ isUploading ? 'Uploading...' : '+ Upload Foto Event' }}</span>
+              :class="['w-full md:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30', isUploading ? 'opacity-50 cursor-not-allowed' : '']">
+              <span>{{ isUploading ? 'Memproses...' : '+ Upload Media Event' }}</span>
             </button>
           </div>
         </div>
 
         <div v-if="mediaDocs.length === 0 && !isUploading" @click="canUpload && openFilePicker()"
           class="w-full py-12 border-2 border-dashed border-emerald-500/20 rounded-2xl flex flex-col items-center justify-center gap-2 hover:bg-emerald-500/5 transition-all">
-          <span class="text-3xl">📸</span>
-          <p class="text-emerald-400 font-medium">Belum ada foto. Klik untuk upload dokumentasi pertama!</p>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 opacity-60" :class="isDarkMode ? 'text-emerald-300' : 'text-emerald-600'" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.586l.828-.828A2 2 0 0110.07 4h3.86a2 2 0 011.664.586l.828.828A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <p :class="['font-medium', isDarkMode ? 'text-emerald-300' : 'text-emerald-700']">Belum ada foto. Klik untuk upload dokumentasi pertama!</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -421,16 +427,32 @@ const getPlaceholderImage = (mimeType) => {
               </template>
             </div>
             <div class="p-4">
-              <p :class="['font-bold truncate', themeClasses.text]">{{ m.title }}</p>
+              <p :class="['font-bold truncate', themeClasses.text]">{{ sanitizeText(m.title) }}</p>
               <p :class="['text-xs', themeClasses.textMuted]">Oleh: {{ m.uploader?.name || 'Sekretaris' }}</p>
-              <div class="flex gap-2 mt-3">
-                <a :href="getDocumentUrl(m, 'preview')" target="_blank"
-                  class="flex-1 text-center py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-all">Lihat
-                  Full</a>
-                <a :href="getDocumentUrl(m, 'download')" target="_blank"
-                  class="flex-1 text-center py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all">Download</a>
-                <button v-if="authStore.user?.role === 'sekretaris'" @click="deleteDoc(m.id)"
-                  class="px-3 py-2 bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white rounded-lg transition-all">🗑️</button>
+              <div class="flex gap-1.5 mt-3">
+                <!-- Preview -->
+                <button @click="openPreview(m)" title="Preview"
+                  class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-semibold transition-all bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </button>
+                <!-- Download -->
+                <a :href="getDocumentUrl(m, 'download')" target="_blank" title="Download"
+                  class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-semibold transition-all bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                </a>
+                <!-- Hapus (sekretaris only) — hapus DB + Google Drive -->
+                <button v-if="canUpload" type="button"
+                  @click="deleteDoc(m.id)" title="Hapus (Drive + DB)"
+                  class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-semibold transition-all bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -439,12 +461,15 @@ const getPlaceholderImage = (mimeType) => {
 
             <!-- TAB 3: BRANDING KIT -->
       <div v-if="activeTab === 'branding'" class="space-y-6">
-        <div class="flex justify-between items-center mb-6">
-          <h3 :class="['text-xl font-bold', themeClasses.text]">Aset Branding HMTI</h3>
-          <div>
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div class="relative w-full md:w-1/2">
+            <input v-model="searchQueryBranding" type="text" placeholder="Cari Judul Branding..."
+              :class="['w-full rounded-xl px-4 py-3 pl-12 outline-none transition-all', themeClasses.inputBg]" />
+          </div>
+          <div class="w-full md:w-auto">
             <button v-if="canUpload" @click="openFilePicker" :disabled="isUploading"
-              :class="['px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-blue-500/30', isUploading ? 'opacity-50' : '']">
-              <span>{{ isUploading ? 'Uploading...' : '+ Tambah Aset' }}</span>
+              :class="['w-full md:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30', isUploading ? 'opacity-50 cursor-not-allowed' : '']">
+              <span>{{ isUploading ? 'Memproses...' : '+ Tambah Aset' }}</span>
             </button>
           </div>
         </div>
@@ -478,59 +503,97 @@ const getPlaceholderImage = (mimeType) => {
               </template>
             </div>
             <div class="text-center w-full">
-              <p :class="['font-bold text-sm truncate px-2', themeClasses.text]">{{ b.title }}</p>
+              <p :class="['font-bold text-sm truncate px-2', themeClasses.text]">{{ sanitizeText(b.title) }}</p>
             </div>
-            <div class="flex flex-col w-full gap-2">
-              <a :href="getDocumentUrl(b, 'download')" target="_blank"
-                class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-center rounded-lg text-xs font-bold transition-all">Download</a>
-              <a :href="getDocumentUrl(b, 'preview')" target="_blank"
-                class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-center rounded-lg text-xs font-bold transition-all">Lihat Full</a>
-              <button v-if="authStore.user?.role === 'sekretaris'" @click="deleteDoc(b.id)"
-                class="text-[10px] text-red-400 hover:underline">Hapus Aset</button>
+            <div class="flex gap-1.5 w-full mt-1">
+              <!-- Preview -->
+              <button @click="openPreview(b)" title="Preview"
+                class="flex-1 flex items-center justify-center py-2.5 rounded-lg text-xs transition-all bg-blue-600/10 hover:bg-blue-600 text-blue-500 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+              <!-- Download -->
+              <a :href="getDocumentUrl(b, 'download')" target="_blank" title="Download"
+                class="flex-1 flex items-center justify-center py-2.5 rounded-lg text-xs transition-all bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </a>
+              <!-- Hapus (sekretaris only) — hapus DB + Google Drive -->
+              <button v-if="canUpload" type="button"
+                @click="deleteDoc(b.id)" title="Hapus (Drive + DB)"
+                class="flex-1 flex items-center justify-center py-2.5 rounded-lg text-xs transition-all bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
     </main>
-  </div>
+
+  </AdminPageLayout>
+
+  <!-- GLOBAL PREVIEW MODAL — di-teleport ke body agar berada di atas semua elemen termasuk header & SpeedDial -->
+  <Teleport to="body">
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0 scale-95"
+      enter-to-class="opacity-100 scale-100"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100 scale-100"
+      leave-to-class="opacity-0 scale-95"
+    >
+      <div
+        v-if="selectedDoc"
+        class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/92 backdrop-blur-md p-4"
+        @click.self="closePreview"
+      >
+        <!-- Tombol tutup -->
+        <button
+          @click="closePreview"
+          class="fixed top-5 right-5 z-[10000] p-3 text-white bg-red-600 hover:bg-red-700 rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <!-- Konten preview -->
+        <div class="flex flex-col items-center gap-5 w-full max-w-5xl mx-auto">
+
+          <!-- Video responsive -->
+          <video
+            v-if="renderType === 'video'"
+            ref="previewVideoEl"
+            :src="streamUrl"
+            class="rounded-xl shadow-2xl border border-white/10 w-full max-h-[72vh]"
+            style="object-fit: contain;"
+            controls
+            autoplay
+          ></video>
+
+          <!-- Gambar responsive -->
+          <img
+            v-else-if="renderType === 'img'"
+            :src="streamUrl"
+            class="rounded-xl shadow-2xl border border-white/10 max-h-[76vh] max-w-full w-auto h-auto"
+            style="object-fit: contain;"
+            alt="Preview"
+          />
+
+          <!-- Info dokumen — latar gelap eksplisit agar teks selalu terbaca di mode apapun -->
+          <div class="shrink-0 text-center bg-black/60 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/10">
+            <h3 class="text-xl md:text-2xl font-black tracking-tight text-white">{{ sanitizeText(selectedDoc.title) }}</h3>
+            <p class="text-sm text-blue-200/70 mt-1 uppercase font-bold tracking-wider">{{ selectedDoc.category }}</p>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
-<style>
-/* Animasi Blob */
-@keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
-  }
-
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
-  }
-
-  66% {
-    transform: translate(-20px, 20px) scale(0.9);
-  }
-
-  100% {
-    transform: translate(0px, 0px) scale(1);
-  }
-}
-
-.animate-blob {
-  animation: blob 10s infinite;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-
-/* Hide Scrollbar for Tabs */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-</style>

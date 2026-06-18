@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
-import SpeedDialNav from '../components/SpeedDialNav.vue'
+import AdminPageLayout from '../components/AdminPageLayout.vue'
 import axios from 'axios' // 1. Import Axios
 
 const router = useRouter()
@@ -40,6 +40,9 @@ const themeClasses = computed(() => {
       cardGlass: 'bg-slate-800/40 border border-white/10 hover:border-white/20 backdrop-blur-md',
       cardContent: 'bg-slate-800/60 border border-white/5',
       inputBg: 'bg-white/5 border-white/10 text-white placeholder-blue-300/40 focus:border-blue-500 focus:bg-white/10',
+      readonlyInput: 'bg-slate-700/30 border border-slate-600/30 text-slate-400',
+      inputLabel: 'text-blue-200/70',
+      saveBtn: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30',
       navGlass: 'bg-white/10 backdrop-blur-md border-b border-white/10',
       tabActive: 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/40',
       tabInactive: 'bg-white/5 text-blue-200 hover:bg-white/10',
@@ -49,18 +52,21 @@ const themeClasses = computed(() => {
     }
   } else {
     return {
-      bg: 'bg-slate-50',
-      text: 'text-slate-900',
-      textMuted: 'text-slate-500',
-      cardGlass: 'bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-lg shadow-sm backdrop-blur-sm',
-      cardContent: 'bg-white border border-slate-100 shadow-sm',
-      inputBg: 'bg-slate-200 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:bg-white shadow-sm',
-      navGlass: 'bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm',
-      tabActive: 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20',
-      tabInactive: 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200',
-      btnBack: 'text-blue-600 hover:text-blue-800',
-      btnBackMobile: 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50',
-      textLightModeFix: 'text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-800'
+      bg: 'bg-cream',
+      text: 'text-stone-900',
+      textMuted: 'text-stone-500',
+      cardGlass: 'bg-white border border-amber-200/70 hover:border-primary-blue/30 hover:shadow-lg shadow-md backdrop-blur-sm',
+      cardContent: 'bg-white border border-amber-100 shadow-sm',
+      inputBg: 'bg-white border-2 border-primary-blue/40 text-stone-900 placeholder-stone-400 focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/15 focus:bg-white shadow-sm',
+      readonlyInput: 'bg-cream-dark/40 border-2 border-stone-200 text-stone-400',
+      inputLabel: 'text-stone-600',
+      navGlass: 'bg-cream-light/90 backdrop-blur-md border-b border-amber-200 shadow-sm',
+      tabActive: 'bg-gradient-to-r from-primary-blue to-primary-blue-dark text-white shadow-lg shadow-primary-blue/25',
+      tabInactive: 'bg-white text-stone-600 hover:bg-cream-light border border-amber-200',
+      btnBack: 'text-primary-blue hover:text-primary-blue-dark',
+      btnBackMobile: 'bg-white text-stone-700 border-amber-200 hover:bg-cream-light',
+      textLightModeFix: 'text-transparent bg-clip-text bg-gradient-to-r from-primary-blue via-accent-orange to-accent-orange',
+      saveBtn: 'bg-gradient-to-r from-accent-orange to-accent-orange-dark hover:from-accent-orange-light hover:to-accent-orange text-white shadow-lg shadow-accent-orange/30',
     }
   }
 })
@@ -175,49 +181,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div :class="['min-h-screen relative overflow-hidden transition-colors duration-500', themeClasses.bg]">
-    
-    <!-- BACKGROUND ANIMATION -->
-    <div class="fixed inset-0 pointer-events-none z-0">
-      <div class="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob transition-colors duration-500"></div>
-      <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 transition-colors duration-500"></div>
-    </div>
-
-    <!-- NAVBAR -->
-    <nav
-      :class="['sticky top-0 z-40 shadow-2xl rounded-b-2xl mb-8 transition-all duration-300', themeClasses.navGlass]">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center gap-3">
-            <button @click="goBackToMenu" :class="['transition-colors', themeClasses.btnBack]">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M10 19l-7-7m0 0l7-7m7 7V5a3 3 0 01-3 3h-4M3 8h4a3 3 0 013 3v8a3 3 0 01-3 3h-4a3 3 0 01-3-3V8z">
-                </path>
-              </svg>
-            </button>
-            <div
-              :class="['font-bold text-xl tracking-wide bg-clip-text text-transparent bg-gradient-to-r', isDarkMode ? 'from-indigo-200 to-white' : 'from-blue-600 to-blue-900']">
-              HMTI
-              <span :class="['font-light', isDarkMode ? 'text-indigo-200' : 'text-blue-700']"> PROFILE</span>
-            </div>
-          </div>
-          <div class="flex items-center gap-4">
-            <button @click="themeStore.toggleTheme()" class="p-2 rounded-full hover:bg-white/10 transition">
-              <span v-if="isDarkMode">☀️</span><span v-else>🌙</span>
-            </button>
-            <div class="hidden md:block text-right">
-              <div :class="['text-sm font-bold', themeClasses.text]">{{ authStore.user ? authStore.user.name : 'User' }}</div>
-              <div :class="['text-xs capitalize', themeClasses.textMuted]">{{ authStore.user ? authStore.user.role : 'Guest' }}</div>
-            </div>
-            <button @click="handleLogout"
-              class="bg-red-500/80 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">KELUAR</button>
-          </div>
-        </div>
-      </div>
-    </nav>
-    <SpeedDialNav />
+  <AdminPageLayout section="PROFILE" accent="indigo" variant="rounded" logout-message="Keluar dari akun?">
 
     <!-- MAIN CONTENT -->
     <main class="relative z-10 max-w-6xl mx-auto px-4 py-8">
@@ -306,29 +270,29 @@ onMounted(() => {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label 
-                      :class="['block text-xs font-bold uppercase opacity-70 mb-2', isDarkMode ? 'text-white' : '']"
+                      :class="['block text-xs font-bold uppercase mb-2', themeClasses.inputLabel]"
                     >Nama Lengkap</label>
                     <!-- Nama dibuat readonly karena backend updateProfile kita saat ini hanya handle email, phone, bio -->
                     <input type="text" v-model="profileData.name" readonly
-                      :class="['w-full rounded-xl px-4 py-3 outline-none opacity-50 cursor-not-allowed bg-slate-700/30 border-slate-600/30 text-slate-400', isDarkMode ? 'text-white' : '']">
+                      :class="['w-full rounded-xl px-4 py-3 outline-none opacity-60 cursor-not-allowed', themeClasses.readonlyInput]">
                   </div>
                   <div>
                     <label 
-                      :class="['block text-xs font-bold uppercase opacity-70 mb-2', isDarkMode ? 'text-white' : '']"
+                      :class="['block text-xs font-bold uppercase mb-2', themeClasses.inputLabel]"
                     >Jabatan</label>
                     <input type="text" v-model="profileData.role" readonly
-                      :class="['w-full rounded-xl px-4 py-3 outline-none opacity-50 cursor-not-allowed bg-slate-700/30 border-slate-600/30 text-slate-400', isDarkMode ? 'text-white' : '']">
+                      :class="['w-full rounded-xl px-4 py-3 outline-none opacity-60 cursor-not-allowed', themeClasses.readonlyInput]">
                   </div>
                   <div>
                     <label 
-                      :class="['block text-xs font-bold uppercase opacity-70 mb-2', isDarkMode ? 'text-white' : '']"
+                      :class="['block text-xs font-bold uppercase mb-2', themeClasses.inputLabel]"
                     >Email</label>
                     <input type="email" v-model="profileData.email" 
                       :class="['w-full rounded-xl px-4 py-3 outline-none transition-all', themeClasses.inputBg, isDarkMode ? 'text-white' : '']">
                   </div>
                   <div>
                     <label 
-                      :class="['block text-xs font-bold uppercase opacity-70 mb-2', isDarkMode ? 'text-white' : '']"
+                      :class="['block text-xs font-bold uppercase mb-2', themeClasses.inputLabel]"
                     >No. HP</label>
                     <input type="tel" v-model="profileData.phone" 
                       :class="['w-full rounded-xl px-4 py-3 outline-none transition-all', themeClasses.inputBg, isDarkMode ? 'text-white' : '']">
@@ -337,15 +301,15 @@ onMounted(() => {
                 
                 <div>
                   <label 
-                    :class="['block text-xs font-bold uppercase opacity-70 mb-2', isDarkMode ? 'text-white' : '']"
+                    :class="['block text-xs font-bold uppercase mb-2', themeClasses.inputLabel]"
                   >Bio Singkat</label>
                   <textarea v-model="profileData.bio" rows="3" 
                     :class="['w-full rounded-xl px-4 py-3 outline-none transition-all', themeClasses.inputBg, isDarkMode ? 'text-white' : '']"></textarea>
                 </div>
 
                 <div class="flex justify-end">
-                  <button @click="saveProfile" 
-                    class="px-8 py-3 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-500/30">
+                  <button @click="saveProfile"
+                    :class="['px-8 py-3 rounded-xl font-bold transition-all', themeClasses.saveBtn]">
                     Simpan Perubahan
                   </button>
                 </div>
@@ -466,13 +430,6 @@ onMounted(() => {
       </div>
     </main>
 
-  </div>
+  </AdminPageLayout>
 </template>
 
-<style>
-@keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(30px, -50px) scale(1.1); } 66% { transform: translate(-20px, 20px) scale(0.9); } 100% { transform: translate(0px, 0px) scale(1); } }
-.animate-blob { animation: blob 10s infinite; }
-.animation-delay-2000 { animation-delay: 2s; }
-.animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-</style>

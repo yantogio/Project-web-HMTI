@@ -22,9 +22,9 @@ async function bootstrap() {
     });
     
     app.use(limiter);
-    console.log('✅ Rate limiting enabled');
+    console.log('[OK] Rate limiting enabled');
   } catch (error) {
-    console.warn('⚠️ Rate limiting disabled (install express-rate-limit: npm install express-rate-limit)');
+    console.warn('[WARN] Rate limiting disabled (install express-rate-limit: npm install express-rate-limit)');
   }
   
   // === MEMORY MONITORING ===
@@ -39,12 +39,12 @@ async function bootstrap() {
     
     // Warning jika heap usage > 500MB
     if (heapUsedMB > 500) {
-      console.warn(`⚠️ WARNING: Heap memory tinggi! ${heapUsedMB}MB`);
+      console.warn(`[WARN] Heap memory tinggi! ${heapUsedMB}MB`);
     }
     
     // Critical jika > 800MB
     if (heapUsedMB > 800) {
-      console.error(`❌ CRITICAL: Heap memory kritis! ${heapUsedMB}MB. Force garbage collection...`);
+      console.error(`[ERROR] Heap memory kritis! ${heapUsedMB}MB. Force garbage collection...`);
       if (global.gc) {
         global.gc();
       }
@@ -65,6 +65,6 @@ async function bootstrap() {
   });
   
   await app.listen(process.env.PORT ?? 3000);
-  console.log(`✅ Server running on port ${process.env.PORT ?? 3000}`);
+  console.log(`[OK] Server running on port ${process.env.PORT ?? 3000}`);
 }
 bootstrap();

@@ -3,6 +3,8 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import AnimatedBackground from '../components/AnimatedBackground.vue'
+import BrandLogo from '../components/BrandLogo.vue'
 // import axios from 'axios' // Opsional, kalau mau taruh data kecil di navbar
 
 const router = useRouter()
@@ -26,14 +28,14 @@ const themeClasses = computed(() => {
     }
   } else {
     return {
-      bg: 'bg-slate-50',
-      text: 'text-slate-900',
-      textMuted: 'text-slate-500',
-      cardGlass: 'bg-white border border-slate-200 hover:border-blue-400 hover:shadow-xl shadow-sm backdrop-blur-sm',
-      cardText: 'text-slate-800',
-      cardDesc: 'text-slate-500',
-      iconBg: 'bg-slate-50',
-      navbarGlass: 'bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm'
+      bg: 'bg-cream',
+      text: 'text-stone-900',
+      textMuted: 'text-stone-500',
+      cardGlass: 'bg-white border border-amber-200/70 hover:border-primary-blue/40 hover:shadow-xl shadow-md backdrop-blur-sm',
+      cardText: 'text-stone-800',
+      cardDesc: 'text-stone-500',
+      iconBg: 'bg-cream-light',
+      navbarGlass: 'bg-cream-light/90 backdrop-blur-md border-b border-amber-200 shadow-sm'
     }
   }
 })
@@ -106,17 +108,8 @@ const getIconSvg = (iconName) => {
 <template>
   <div :class="['min-h-screen relative overflow-hidden transition-colors duration-500', themeClasses.bg]">
     
-    <!-- BACKGROUND ANIMATION (Sama seperti Home & Login) -->
-    <div class="fixed inset-0 pointer-events-none z-0">
-      <div :class="[
-        'absolute top-0 left-1/4 w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob transition-colors duration-500',
-        isDarkMode ? 'bg-blue-600' : 'bg-blue-300'
-      ]"></div>
-      <div :class="[
-        'absolute bottom-0 right-1/4 w-96 h-96 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 transition-colors duration-500',
-        isDarkMode ? 'bg-indigo-600' : 'bg-indigo-300'
-      ]"></div>
-    </div>
+    <!-- BACKGROUND ANIMATION -->
+    <AnimatedBackground :isDarkMode="isDarkMode" />
 
     <!-- NAVBAR (GLASSMORPHISM) -->
     <nav :class="['sticky top-0 z-50 transition-all duration-300', themeClasses.navbarGlass]">
@@ -124,16 +117,7 @@ const getIconSvg = (iconName) => {
         <div class="flex items-center justify-between h-20">
           
           <!-- Logo Area -->
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
-              A
-            </div>
-            <div>
-              <h1 :class="['font-bold text-xl tracking-wide', themeClasses.text]">
-                HMTI <span class="font-light opacity-70">ADMIN</span>
-              </h1>
-            </div>
-          </div>
+          <BrandLogo size="md" :isDarkMode="isDarkMode" subtitle="ADMIN" />
 
           <!-- Right Actions -->
           <div class="flex items-center gap-4">
@@ -239,18 +223,3 @@ const getIconSvg = (iconName) => {
   </div>
 </template>
 
-<style>
-/* Reuse Animations */
-@keyframes blob {
-  0% { transform: translate(0px, 0px) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
-  100% { transform: translate(0px, 0px) scale(1); }
-}
-.animate-blob {
-  animation: blob 10s infinite;
-}
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-</style>
