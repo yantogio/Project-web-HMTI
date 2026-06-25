@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -429,13 +429,37 @@ const handleLogout = () => {
   }
 }
 
+// --- SCROLL REVEAL ANIMATIONS ---
+let scrollObserver = null
+
+const setupScrollAnimations = () => {
+  scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible')
+        const children = entry.target.querySelectorAll('.stagger-child')
+        children.forEach((child, i) => {
+          setTimeout(() => child.classList.add('is-visible'), i * 100)
+        })
+      }
+    })
+  }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' })
+  document.querySelectorAll('.scroll-reveal').forEach(el => scrollObserver.observe(el))
+}
+
 // Jalankan fetch saat halaman dimuat
-onMounted(() => {
+onMounted(async () => {
   fetchTransactions()
   fetchConfig()
   fetchDuesList()
   fetchDuesSummary()
   fetchMembers()
+  await nextTick()
+  setupScrollAnimations()
+})
+
+onUnmounted(() => {
+  if (scrollObserver) scrollObserver.disconnect()
 })
 </script>
 
@@ -449,7 +473,7 @@ onMounted(() => {
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <!-- MAIN CONTENT -->
         <div>
-          <h1 :class="[
+          <h1 class="hero-fade-up" :class="[
             'text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text mb-2 leading-tight md:leading-tight break-words whitespace-normal',
             isDarkMode
               ? 'bg-gradient-to-r from-amber-300 via-white to-amber-200'
@@ -457,7 +481,7 @@ onMounted(() => {
           ]">
             Manajemen Keuangan
           </h1>
-          <p :class="['text-lg font-light', themeClasses.textMuted]">Pusat data dan informasi arus kas HMTI.</p>
+          <p class="hero-fade-up" style="animation-delay:0.1s" :class="['text-lg font-light', themeClasses.textMuted]">Pusat data dan informasi arus kas HMTI.</p>
         </div>
         <div class="flex flex-col items-end gap-3">
           <button @click="goBackToMenu"
@@ -468,7 +492,7 @@ onMounted(() => {
       </div>
 
       <!-- 1. TOP STATS CARDS — Layout 2:1 (Chart Besar + 2 Card Padat) -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="scroll-reveal grid grid-cols-1 md:grid-cols-3 gap-6">
 
         <!-- CARD ARUS KAS — 2/3 lebar -->
         <div :class="['md:col-span-2 p-6 rounded-2xl relative overflow-hidden flex flex-col', themeClasses.cardGlass]">
@@ -664,7 +688,7 @@ onMounted(() => {
       </div>
 
       <!-- 2. MAIN SPLIT CONTENT (TIMELINE + SUMMARY) -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="scroll-reveal grid grid-cols-1 lg:grid-cols-3 gap-8">
 
         <!-- LEFT COLUMN: TRANSACTION TIMELINE (70%) -->
         <div class="lg:col-span-2 space-y-6">

@@ -6,6 +6,7 @@ import { GoogleDriveService } from './google-drive.service';
 
 @Module({
   controllers: [DocumentsController],
-  providers: [DocumentsService, GoogleDriveService], 
+  providers: [DocumentsService, GoogleDriveService],
+  exports: [DocumentsService],
 })
 export class DocumentsModule {}

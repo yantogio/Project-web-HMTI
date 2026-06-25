@@ -2,7 +2,7 @@
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
 import AnimatedBackground from '../components/AnimatedBackground.vue'
 import BrandLogo from '../components/BrandLogo.vue'
 // import axios from 'axios' // Opsional, kalau mau taruh data kecil di navbar
@@ -93,6 +93,24 @@ const menuItems = [
 ]
 
 // Fungsi helper untuk ikon SVG
+// --- SCROLL REVEAL ANIMATIONS ---
+let scrollObserver = null
+
+const setupScrollAnimations = () => {
+  scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible')
+        const children = entry.target.querySelectorAll('.stagger-child')
+        children.forEach((child, i) => {
+          setTimeout(() => child.classList.add('is-visible'), i * 100)
+        })
+      }
+    })
+  }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' })
+  document.querySelectorAll('.scroll-reveal').forEach(el => scrollObserver.observe(el))
+}
+
 const getIconSvg = (iconName) => {
   const icons = {
     users: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />',
@@ -103,6 +121,15 @@ const getIconSvg = (iconName) => {
   }
   return icons[iconName] || icons['user']
 }
+
+onMounted(async () => {
+  await nextTick()
+  setupScrollAnimations()
+})
+
+onUnmounted(() => {
+  if (scrollObserver) scrollObserver.disconnect()
+})
 </script>
 
 <template>
@@ -163,27 +190,27 @@ const getIconSvg = (iconName) => {
       
       <!-- Welcome Header -->
       <div class="mb-12 text-center md:text-left">
-        <h2 :class="['text-3xl md:text-5xl font-bold mb-2', themeClasses.text]">
+        <h2 class="hero-fade-up" :class="['text-3xl md:text-5xl font-bold mb-2', themeClasses.text]">
           Selamat Datang, 
           <span :class="['bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400', themeClasses.text]">
             {{ authStore.user ? authStore.user.name : 'Admin' }}
           </span>
         </h2>
-        <p :class="['text-lg', themeClasses.textMuted]">
+        <p class="hero-fade-up" style="animation-delay:0.1s" :class="['text-lg', themeClasses.textMuted]">
           Akses cepat ke modul manajemen sistem HMTI.
         </p>
       </div>
 
       <!-- GRID MENU (WINDOWS) -->
       <!-- Responsive Grid: 1 col mobile, 2 col tablet, 3 col desktop -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="scroll-reveal grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
         <!-- LOOPING MENU ITEMS -->
-        <div 
-          v-for="item in menuItems" 
+        <div
+          v-for="item in menuItems"
           :key="item.id"
           @click="router.push(item.route)"
-          class="group relative rounded-2xl p-8 cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl overflow-hidden"
+          class="stagger-child group relative rounded-2xl p-8 cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl overflow-hidden"
           :class="themeClasses.cardGlass"
         >
           <!-- Background Glow on Hover -->

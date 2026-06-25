@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -174,9 +174,33 @@ const showCurrentPassword = ref(false)
 const showNewPassword = ref(false)
 const showConfirmPassword = ref(false)
 
+// --- SCROLL REVEAL ANIMATIONS ---
+let scrollObserver = null
+
+const setupScrollAnimations = () => {
+  scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible')
+        const children = entry.target.querySelectorAll('.stagger-child')
+        children.forEach((child, i) => {
+          setTimeout(() => child.classList.add('is-visible'), i * 100)
+        })
+      }
+    })
+  }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' })
+  document.querySelectorAll('.scroll-reveal').forEach(el => scrollObserver.observe(el))
+}
+
 // Jalankan fetch saat halaman dimuat
-onMounted(() => {
+onMounted(async () => {
   fetchMyProfile()
+  await nextTick()
+  setupScrollAnimations()
+})
+
+onUnmounted(() => {
+  if (scrollObserver) scrollObserver.disconnect()
 })
 </script>
 
@@ -190,11 +214,11 @@ onMounted(() => {
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h1
-            class="text-4xl md:text-5xl font-extrabold mb-2 leading-tight md:leading-tight break-words whitespace-normal"
+            class="hero-fade-up text-4xl md:text-5xl font-extrabold mb-2 leading-tight md:leading-tight break-words whitespace-normal"
             :class="isDarkMode ? 'text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-white to-indigo-200' : themeClasses.textLightModeFix">
             Edit Profil
           </h1>
-          <p :class="['text-lg font-light', isDarkMode ? 'text-blue-200' : 'text-slate-600']">Kelola informasi diri dan keamanan akun.</p>
+          <p class="hero-fade-up" style="animation-delay:0.1s" :class="['text-lg font-light', isDarkMode ? 'text-blue-200' : 'text-slate-600']">Kelola informasi diri dan keamanan akun.</p>
         </div>
         
         <div class="flex flex-col items-end gap-3">
@@ -208,7 +232,7 @@ onMounted(() => {
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         <!-- LEFT COLUMN: PROFILE VISUAL CARD -->
-        <div class="lg:col-span-1">
+        <div class="lg:col-span-1 scroll-reveal">
           <div :class="['p-8 rounded-3xl border text-center relative overflow-hidden group', themeClasses.cardGlass]">
             <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-indigo-600 to-blue-600 opacity-80"></div>
             
@@ -248,7 +272,7 @@ onMounted(() => {
         </div>
 
         <!-- RIGHT COLUMN: SETTINGS FORM -->
-        <div class="lg:col-span-2">
+        <div class="lg:col-span-2 scroll-reveal">
           <div :class="['rounded-2xl border overflow-hidden', themeClasses.cardGlass]">
             
             <div class="flex border-b" :class="isDarkMode ? 'border-white/10' : 'border-slate-200'">

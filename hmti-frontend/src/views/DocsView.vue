@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
@@ -101,8 +101,32 @@ const fetchDocs = async (page = 1) => {
   }
 }
 
-onMounted(() => {
+// --- SCROLL REVEAL ANIMATIONS ---
+let scrollObserver = null
+
+const setupScrollAnimations = () => {
+  scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible')
+        const children = entry.target.querySelectorAll('.stagger-child')
+        children.forEach((child, i) => {
+          setTimeout(() => child.classList.add('is-visible'), i * 100)
+        })
+      }
+    })
+  }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' })
+  document.querySelectorAll('.scroll-reveal').forEach(el => scrollObserver.observe(el))
+}
+
+onMounted(async () => {
   fetchDocs()
+  await nextTick()
+  setupScrollAnimations()
+})
+
+onUnmounted(() => {
+  if (scrollObserver) scrollObserver.disconnect()
 })
 
 const handleFileUpload = async (event) => {
@@ -229,7 +253,7 @@ const getPlaceholderImage = (mimeType) => {
       <!-- HEADER SECTION -->
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 :class="[
+          <h1 class="hero-fade-up" :class="[
             'text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text mb-2 leading-tight md:leading-tight break-words whitespace-normal',
             isDarkMode
               ? 'bg-gradient-to-r from-emerald-300 via-white to-emerald-200'
@@ -237,7 +261,7 @@ const getPlaceholderImage = (mimeType) => {
           ]">
             Pusat Dokumentasi
           </h1>
-          <p :class="['text-lg font-light', themeClasses.textMuted]">Kelola arsip, media, dan aset kreatif dalam satu tempat.</p>
+          <p class="hero-fade-up" style="animation-delay:0.1s" :class="['text-lg font-light', themeClasses.textMuted]">Kelola arsip, media, dan aset kreatif dalam satu tempat.</p>
         </div>
 
         <div class="flex flex-col items-end gap-3">
@@ -249,7 +273,7 @@ const getPlaceholderImage = (mimeType) => {
       </div>
 
       <!-- TAB NAVIGATION -->
-      <div class="flex gap-4 mb-8 overflow-x-auto pb-2 no-scrollbar">
+      <div class="scroll-reveal flex gap-4 mb-8 overflow-x-auto pb-2 no-scrollbar">
         <button @click="activeTab = 'surat'"
           :class="['px-6 py-3 rounded-xl font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-2', activeTab === 'surat' ? themeClasses.tabActive : themeClasses.tabInactive]">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -303,7 +327,7 @@ const getPlaceholderImage = (mimeType) => {
           <p :class="['text-xs text-center', isDarkMode ? 'text-blue-300/70' : 'text-slate-500']">Format: PDF, DOCX, PNG, JPG (Maks. 10MB)</p>
         </div>
 
-        <div :class="['rounded-2xl overflow-hidden border', themeClasses.cardGlass]">
+        <div :class="['rounded-2xl overflow-hidden border animate-fade-in', themeClasses.cardGlass]">
           <table class="w-full text-left">
             <thead :class="['text-xs font-bold uppercase tracking-wider', themeClasses.tableHead]">
               <tr>
@@ -400,7 +424,7 @@ const getPlaceholderImage = (mimeType) => {
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div v-for="m in mediaDocs" :key="m.id"
-            :class="['group relative rounded-2xl overflow-hidden border transition-all hover:scale-[1.02]', themeClasses.cardGlass]">
+            :class="['group relative rounded-2xl overflow-hidden border transition-all hover:scale-[1.02] animate-fade-in', themeClasses.cardGlass]">
             <div class="aspect-video w-full overflow-hidden bg-slate-800">
               <template v-if="isVideo(m.category)">
                 <video
@@ -476,7 +500,7 @@ const getPlaceholderImage = (mimeType) => {
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div v-for="b in brandingDocs" :key="b.id"
-            :class="['p-4 rounded-xl border flex flex-col items-center gap-3 group transition-all', themeClasses.cardGlass]">
+            :class="['p-4 rounded-xl border flex flex-col items-center gap-3 group transition-all animate-fade-in', themeClasses.cardGlass]">
             <div class="aspect-square w-full overflow-hidden bg-slate-800 rounded-lg">
               <template v-if="isVideo(b.category)">
                 <video

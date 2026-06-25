@@ -1,10 +1,12 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import AdminPageLayout from '../components/AdminPageLayout.vue'
+import { useToast } from '../composables/useToast'
+import { useConfirm } from '../composables/useConfirm'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -37,13 +39,13 @@ const themeClasses = computed(() => {
       popupCard: 'bg-white border-gray-100',
       popupText: 'text-gray-900',
       popupMuted: 'text-gray-500',
-      modalOverlay: 'bg-gray-900/75',
-      modalContent: 'bg-white border-white/20',
-      modalForm: 'bg-gray-50',
-      modalLabel: 'text-gray-700',
-      modalInput: 'bg-white border-gray-300',
-      modalFooter: 'bg-gray-50',
-      modalCancel: 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50',
+      modalOverlay: 'bg-slate-950/80',
+      modalContent: 'bg-slate-900 border-white/10',
+      modalForm: 'bg-slate-800/60',
+      modalLabel: 'text-slate-300',
+      modalInput: 'bg-slate-700/60 border-slate-500/80 text-white placeholder-slate-400 focus:ring-blue-400 focus:border-blue-400 focus:bg-slate-700',
+      modalFooter: 'bg-slate-800/60 border-slate-700',
+      modalCancel: 'border-slate-600 text-slate-300 bg-slate-700/60 hover:bg-slate-600',
       btnBack: 'text-blue-200 hover:text-white',
       btnBackMobile: 'bg-white/10 text-white border-white/20',
       restrictedCard: 'bg-white/5 border-white/10 border-dashed',
@@ -171,6 +173,8 @@ const handleKeyDown = (event) => {
   }
 }
 
+const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
+const { confirm: confirmDialog } = useConfirm()
 const isLoading = ref(false)
 
 const saveMember = async () => {
@@ -178,21 +182,21 @@ const saveMember = async () => {
   isLoading.value = true
   try {
     if (!newMember.value.nia || !newMember.value.name || !newMember.value.role) {
-      alert('ERROR! NIA, Nama, dan Role wajib diisi!');
-      return;
+      toastWarning('NIA, Nama, dan Role wajib diisi!')
+      return
     }
     if (isEditing.value) {
       await axios.patch(`http://localhost:3000/members/${editingNia.value}`, newMember.value)
-      alert('Data anggota berhasil diperbarui!')
+      toastSuccess('Data anggota berhasil diperbarui!')
     } else {
       await axios.post('http://localhost:3000/members', newMember.value)
-      alert('Anggota baru berhasil ditambahkan!')
+      toastSuccess('Anggota baru berhasil ditambahkan!')
     }
     closeModal()
     await fetchMembers()
   } catch (error) {
     console.error('Gagal menyimpan:', error)
-    alert('Terjadi kesalahan saat menyimpan data.')
+    toastError('Terjadi kesalahan saat menyimpan data.')
   } finally {
     isLoading.value = false
   }
@@ -206,14 +210,15 @@ const editMember = (member) => {
 }
 
 const deleteMember = async (nia) => {
-  if (confirm('Apakah kamu yakin ingin menghapus anggota ini?')) {
+  const ok = await confirmDialog('Apakah kamu yakin ingin menghapus anggota ini?')
+  if (ok) {
     try {
       await axios.delete(`http://localhost:3000/members/${nia}`)
-      alert('Anggota berhasil dihapus.')
+      toastSuccess('Anggota berhasil dihapus.')
       await fetchMembers()
     } catch (error) {
       console.error('Gagal menghapus:', error)
-      alert('Gagal menghapus data.')
+      toastError('Gagal menghapus data.')
     }
   }
 }
@@ -272,7 +277,33 @@ const closeProfilePopup = () => {
   selectedMemberProfile.value = null
 }
 
-onMounted(() => { fetchMembers() })
+// --- SCROLL REVEAL ANIMATIONS ---
+let scrollObserver = null
+
+const setupScrollAnimations = () => {
+  scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible')
+        const children = entry.target.querySelectorAll('.stagger-child')
+        children.forEach((child, i) => {
+          setTimeout(() => child.classList.add('is-visible'), i * 100)
+        })
+      }
+    })
+  }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' })
+  document.querySelectorAll('.scroll-reveal').forEach(el => scrollObserver.observe(el))
+}
+
+onMounted(async () => {
+  fetchMembers()
+  await nextTick()
+  setupScrollAnimations()
+})
+
+onUnmounted(() => {
+  if (scrollObserver) scrollObserver.disconnect()
+})
 </script>
 
 <template>
@@ -282,10 +313,10 @@ onMounted(() => { fetchMembers() })
 
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 :class="['text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r mb-2 leading-tight md:leading-tight break-words whitespace-normal', themeClasses.gradientText]">
+          <h1 class="hero-fade-up" :class="['text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r mb-2 leading-tight md:leading-tight break-words whitespace-normal', themeClasses.gradientText]">
             Manajemen Anggota
           </h1>
-          <p :class="['text-lg font-light', themeClasses.textMuted]">Pusat data dan informasi seluruh anggota himpunan.</p>
+          <p class="hero-fade-up" style="animation-delay:0.1s" :class="['text-lg font-light', themeClasses.textMuted]">Pusat data dan informasi seluruh anggota himpunan.</p>
         </div>
         <div class="flex flex-col items-end gap-3">
           <button @click="goBackToMenu"
@@ -294,8 +325,8 @@ onMounted(() => { fetchMembers() })
           </button>
         </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div :class="['border p-6 rounded-2xl flex flex-col justify-between items-start transition duration-300', themeClasses.cardGlass, themeClasses.cardBorder]">
+      <div class="scroll-reveal grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="stagger-child" :class="['border p-6 rounded-2xl flex flex-col justify-between items-start transition duration-300', themeClasses.cardGlass, themeClasses.cardBorder]">
           <div>
             <div :class="['text-sm font-bold uppercase tracking-wider mb-1', isDarkMode ? 'text-blue-300' : 'text-blue-600']">Total Anggota</div>
             <div :class="['text-5xl font-extrabold', themeClasses.text]">{{ members.length }}</div>
@@ -311,7 +342,7 @@ onMounted(() => { fetchMembers() })
         </div>
 
         <!-- Card 2: Statistik Aktif -->
-        <div :class="['border p-6 rounded-2xl flex flex-col justify-between items-start transition duration-300', themeClasses.cardGlass, themeClasses.cardBorder]">
+        <div class="stagger-child" :class="['border p-6 rounded-2xl flex flex-col justify-between items-start transition duration-300', themeClasses.cardGlass, themeClasses.cardBorder]">
           <div>
             <div class="text-green-500 text-sm font-bold uppercase tracking-wider mb-1">Anggota Aktif</div>
             <div :class="['text-5xl font-extrabold', themeClasses.text]">{{members.filter(m => m.status === 'Aktif').length}}</div>
@@ -327,7 +358,7 @@ onMounted(() => { fetchMembers() })
 
         <!-- Card 3: TOMBOL TAMBAH (HANYA MUNCUL KALAU BISA MANAGE DATA) -->
         <div v-if="canManageData" @click="openModal"
-          class="bg-gradient-to-br from-blue-600 to-indigo-600 p-6 rounded-2xl flex flex-col justify-between items-start cursor-pointer transform transition duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/40 group">
+          class="stagger-child bg-gradient-to-br from-blue-600 to-indigo-600 p-6 rounded-2xl flex flex-col justify-between items-start cursor-pointer transform transition duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/40 group">
           <div class="flex justify-between w-full">
             <div>
               <div class="text-blue-100 text-sm font-bold uppercase tracking-wider mb-2">Aksi Cepat</div>
@@ -343,14 +374,14 @@ onMounted(() => { fetchMembers() })
           </div>
         </div>
         <!-- OPSIONAL: PESAN UNTUK ANGGOTA BIASA -->
-        <div v-else :class="['border p-6 rounded-2xl flex flex-col justify-center items-center border-dashed', themeClasses.restrictedCard]">
+        <div v-else class="stagger-child" :class="['border p-6 rounded-2xl flex flex-col justify-center items-center border-dashed', themeClasses.restrictedCard]">
           <div :class="['font-bold', themeClasses.restrictedText]">Akses Terbatas</div>
           <div :class="['text-sm mt-1', themeClasses.restrictedMuted]">Hubungi pengurus untuk menambah data.</div>
         </div>
       </div>
 
       <!-- PENCARIAN -->
-      <div :class="['flex flex-col md:flex-row justify-between items-center gap-4 backdrop-blur-sm p-4 rounded-xl border', themeClasses.searchBar, themeClasses.cardBorder]">
+      <div class="scroll-reveal" :class="['flex flex-col md:flex-row justify-between items-center gap-4 backdrop-blur-sm p-4 rounded-xl border', themeClasses.searchBar, themeClasses.cardBorder]">
         <!-- Pencarian (≈70%) -->
         <div class="relative w-full md:w-2/3">
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -377,7 +408,7 @@ onMounted(() => { fetchMembers() })
       </div>
 
       <!-- TABEL DENGAN VISUAL STATUS -->
-      <div :class="['rounded-2xl shadow-2xl overflow-hidden ring-1', themeClasses.tableWrap, isDarkMode ? 'shadow-blue-900/15' : 'shadow-slate-200/50']">
+      <div class="scroll-reveal" :class="['rounded-2xl shadow-2xl overflow-hidden ring-1', themeClasses.tableWrap, isDarkMode ? 'shadow-blue-900/15' : 'shadow-slate-200/50']">
         <div class="overflow-x-auto">
           <table class="min-w-full leading-normal">
             <thead class="sticky top-0 z-10 shadow-md">
@@ -631,137 +662,187 @@ onMounted(() => { fetchMembers() })
       </div>
     </div>
 
-    <!-- MODAL POP-UP (SAMA SEPERTI SEBELUMNYA, TAPI DITAMBAH DROPDOWN STATUS) -->
-    <div v-if="isModalOpen" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog"
-      aria-modal="true">
-      <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-        <div :class="['fixed inset-0 backdrop-blur-sm transition-opacity', isDarkMode ? 'bg-gray-900/75' : 'bg-slate-900/50']" @click="closeModal"></div>
-        <div
-          :class="['inline-block align-bottom rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:w-full sm:max-w-2xl border', themeClasses.modalContent]">
-          <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-5 sm:px-6 sm:flex sm:items-start">
-            <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-              <h3 class="text-xl leading-6 font-bold text-white" id="modal-title">
-                {{ isEditing ? 'Edit Data Anggota' : 'Tambah Anggota Baru' }}
-              </h3>
-              <p class="mt-1 text-sm text-blue-100">{{ isEditing ? 'Perbarui data keanggotaan.' : 'Isi formulir di bawah.' }}</p>
-            </div>
-            <button type="button" @click="closeModal"
-              class="bg-transparent rounded-md p-2 text-blue-100 hover:text-white focus:outline-none sm:absolute sm:top-4 sm:right-4">
-              <span class="sr-only">Tutup</span>
-              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-          <div :class="['px-4 py-5 sm:p-6', themeClasses.modalForm]">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label :class="['block text-sm font-medium mb-1', themeClasses.modalLabel]">NIA</label>
-                <input
-                  v-model="newMember.nia"
-                  ref="niaRef"
-                  type="text"
-                  @keydown="handleKeyDown"
-                  :class="['modal-input w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none', themeClasses.modalInput]"
-                  placeholder="HMTI-003"
-                >
-              </div>
-              <div>
-                <label :class="['block text-sm font-medium mb-1', themeClasses.modalLabel]">NPM</label>
-                <input
-                  v-model="newMember.npm"
-                  ref="npmRef"
-                  type="text"
-                  @keydown="handleKeyDown"
-                  :class="['modal-input w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none', themeClasses.modalInput]"
-                  placeholder="2301111222"
-                >
-              </div>
-              <div>
-                <label :class="['block text-sm font-medium mb-1', themeClasses.modalLabel]">Nama Lengkap</label>
-                <input
-                  v-model="newMember.name"
-                  ref="nameRef"
-                  type="text"
-                  @keydown="handleKeyDown"
-                  :class="['modal-input w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none', themeClasses.modalInput]"
-                  placeholder="Nama Mahasiswa"
-                >
-              </div>
-              <div>
-                <label :class="['block text-sm font-medium mb-1', themeClasses.modalLabel]">Angkatan</label>
-                <input
-                  v-model="newMember.angkatan"
-                  ref="angkatanRef"
-                  type="text"
-                  @keydown="handleKeyDown"
-                  :class="['modal-input w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none', themeClasses.modalInput]"
-                  placeholder="2023-2024"
-                >
-              </div>
-              <div>
-                <label :class="['block text-sm font-medium mb-1', themeClasses.modalLabel]">Jabatan</label>
-                <input
-                  v-model="newMember.jabatan"
-                  ref="jabatanRef"
-                  type="text"
-                  @keydown="handleKeyDown"
-                  :class="['modal-input w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none', themeClasses.modalInput]"
-                  placeholder="Staff / Kadiv"
-                >
-              </div>
-              <div>
-                <label :class="['block text-sm font-medium mb-1', themeClasses.modalLabel]">Role</label>
-                <select
-                  v-model="newMember.role"
-                  ref="roleRef"
-                  @keydown="handleKeyDown"
-                  :class="['modal-input w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none', themeClasses.modalInput]"
-                >
-                  <option disabled value="">Pilih Role...</option>
-                  <option value="ketum">Ketua Umum</option>
-                  <option value="sekretaris">Sekretaris</option>
-                  <option value="bendahara">Bendahara</option>
-                  <option value="anggota">Anggota</option>
-                </select>
-              </div>
-              <!-- TAMBAHAN: INPUT STATUS -->
-              <div>
-                <label :class="['block text-sm font-medium mb-1', themeClasses.modalLabel]">Status Keanggotaan</label>
-                <select
-                  v-model="newMember.status"
-                  ref="statusRef"
-                  @keydown="handleKeyDown"
-                  :class="['modal-input w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none', themeClasses.modalInput]"
-                >
-                  <option value="Aktif">Aktif</option>
-                  <option value="Tidak Aktif">Tidak Aktif</option>
-                  <option value="Alumni">Alumni</option>
-                </select>
-              </div>
-            </div>
-          </div>
-          <div :class="['px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse sm:px-6', themeClasses.modalFooter]">
-            <button
-              type="button"
-              @click="saveMember"
-              :disabled="isLoading"
-              class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none sm:ml-3 sm:w-auto sm:text-sm"
+    <!-- MODAL POP-UP -->
+    <Transition name="modal-overlay-fade">
+      <div v-if="isModalOpen" class="fixed inset-0 z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+          <div :class="['absolute inset-0 backdrop-blur-sm', isDarkMode ? 'bg-slate-950/80' : 'bg-slate-900/50']" @click="closeModal"></div>
+
+          <Transition name="modal-card-pop">
+            <div
+              v-if="isModalOpen"
+              :class="['relative w-full max-w-2xl rounded-2xl text-left overflow-hidden shadow-2xl border', themeClasses.modalContent]"
             >
-              <span v-if="isLoading">Menyimpan...</span>
-              <span v-else>
-                {{ isEditing ? 'Update Data' : 'Simpan Anggota' }}
-              </span>
-            </button>
-            <button type="button" @click="closeModal"
-              :class="['mt-3 w-full inline-flex justify-center rounded-lg border shadow-sm px-4 py-2 text-base font-medium focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm', themeClasses.modalCancel]">
-              Batal
-            </button>
-          </div>
+              <!-- Header gradient -->
+              <div class="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-6 py-5 overflow-hidden">
+                <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+                <div class="absolute -bottom-4 left-10 w-16 h-16 bg-white/5 rounded-full blur-lg pointer-events-none"></div>
+                <div class="relative flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm">
+                      <svg v-if="isEditing" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M4 20h4.5L19 9.5l-4.5-4.5L4 15.5V20z"/>
+                      </svg>
+                      <svg v-else class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 class="text-lg font-bold text-white" id="modal-title">
+                        {{ isEditing ? 'Edit Data Anggota' : 'Tambah Anggota Baru' }}
+                      </h3>
+                      <p class="text-xs text-blue-100/80 mt-0.5">{{ isEditing ? 'Perbarui informasi keanggotaan.' : 'Isi formulir untuk mendaftarkan anggota baru.' }}</p>
+                    </div>
+                  </div>
+                  <button type="button" @click="closeModal"
+                    class="bg-white/10 hover:bg-white/25 rounded-xl p-2 text-blue-100 hover:text-white focus:outline-none transition-all duration-150">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Form body -->
+              <div :class="['px-6 py-6', themeClasses.modalForm]">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label :class="['block text-xs font-bold uppercase tracking-wider mb-2', themeClasses.modalLabel]">
+                      <span class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/></svg>
+                        NIA
+                      </span>
+                    </label>
+                    <input v-model="newMember.nia" ref="niaRef" type="text" @keydown="handleKeyDown"
+                      :class="['modal-input w-full border rounded-xl px-4 py-3 focus:ring-2 focus:border-transparent outline-none transition-all duration-200', themeClasses.modalInput]"
+                      placeholder="HMTI-003">
+                  </div>
+                  <div>
+                    <label :class="['block text-xs font-bold uppercase tracking-wider mb-2', themeClasses.modalLabel]">
+                      <span class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/></svg>
+                        NPM
+                      </span>
+                    </label>
+                    <input v-model="newMember.npm" ref="npmRef" type="text" @keydown="handleKeyDown"
+                      :class="['modal-input w-full border rounded-xl px-4 py-3 focus:ring-2 focus:border-transparent outline-none transition-all duration-200', themeClasses.modalInput]"
+                      placeholder="2301111222">
+                  </div>
+                  <div class="md:col-span-2">
+                    <label :class="['block text-xs font-bold uppercase tracking-wider mb-2', themeClasses.modalLabel]">
+                      <span class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        Nama Lengkap
+                      </span>
+                    </label>
+                    <input v-model="newMember.name" ref="nameRef" type="text" @keydown="handleKeyDown"
+                      :class="['modal-input w-full border rounded-xl px-4 py-3 focus:ring-2 focus:border-transparent outline-none transition-all duration-200', themeClasses.modalInput]"
+                      placeholder="Nama Mahasiswa">
+                  </div>
+                  <div>
+                    <label :class="['block text-xs font-bold uppercase tracking-wider mb-2', themeClasses.modalLabel]">
+                      <span class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        Angkatan
+                      </span>
+                    </label>
+                    <input v-model="newMember.angkatan" ref="angkatanRef" type="text" @keydown="handleKeyDown"
+                      :class="['modal-input w-full border rounded-xl px-4 py-3 focus:ring-2 focus:border-transparent outline-none transition-all duration-200', themeClasses.modalInput]"
+                      placeholder="2023-2024">
+                  </div>
+                  <div>
+                    <label :class="['block text-xs font-bold uppercase tracking-wider mb-2', themeClasses.modalLabel]">
+                      <span class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        Jabatan
+                      </span>
+                    </label>
+                    <input v-model="newMember.jabatan" ref="jabatanRef" type="text" @keydown="handleKeyDown"
+                      :class="['modal-input w-full border rounded-xl px-4 py-3 focus:ring-2 focus:border-transparent outline-none transition-all duration-200', themeClasses.modalInput]"
+                      placeholder="Staff / Kadiv">
+                  </div>
+                  <div>
+                    <label :class="['block text-xs font-bold uppercase tracking-wider mb-2', themeClasses.modalLabel]">
+                      <span class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        Role / Hak Akses
+                      </span>
+                    </label>
+                    <select v-model="newMember.role" ref="roleRef" @keydown="handleKeyDown"
+                      :class="['modal-input w-full border rounded-xl px-4 py-3 focus:ring-2 focus:border-transparent outline-none transition-all duration-200 cursor-pointer', themeClasses.modalInput]">
+                      <option :class="isDarkMode ? 'bg-slate-700 text-white' : 'bg-white text-gray-900'" disabled value="">Pilih Role...</option>
+                      <option :class="isDarkMode ? 'bg-slate-700 text-white' : 'bg-white text-gray-900'" value="ketum">Ketua Umum</option>
+                      <option :class="isDarkMode ? 'bg-slate-700 text-white' : 'bg-white text-gray-900'" value="sekretaris">Sekretaris</option>
+                      <option :class="isDarkMode ? 'bg-slate-700 text-white' : 'bg-white text-gray-900'" value="bendahara">Bendahara</option>
+                      <option :class="isDarkMode ? 'bg-slate-700 text-white' : 'bg-white text-gray-900'" value="anggota">Anggota</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label :class="['block text-xs font-bold uppercase tracking-wider mb-2', themeClasses.modalLabel]">
+                      <span class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Status Keanggotaan
+                      </span>
+                    </label>
+                    <select v-model="newMember.status" ref="statusRef" @keydown="handleKeyDown"
+                      :class="['modal-input w-full border rounded-xl px-4 py-3 focus:ring-2 focus:border-transparent outline-none transition-all duration-200 cursor-pointer', themeClasses.modalInput]">
+                      <option :class="isDarkMode ? 'bg-slate-700 text-white' : 'bg-white text-gray-900'" value="Aktif">Aktif</option>
+                      <option :class="isDarkMode ? 'bg-slate-700 text-white' : 'bg-white text-gray-900'" value="Tidak Aktif">Tidak Aktif</option>
+                      <option :class="isDarkMode ? 'bg-slate-700 text-white' : 'bg-white text-gray-900'" value="Alumni">Alumni</option>
+                    </select>
+                  </div>
+                </div>
+                <p :class="['mt-5 text-xs flex items-center gap-1.5', isDarkMode ? 'text-slate-500' : 'text-slate-400']">
+                  <kbd :class="['px-1.5 py-0.5 rounded text-[10px] font-mono border', isDarkMode ? 'bg-slate-700 border-slate-600 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-600']">Enter</kbd>
+                  atau
+                  <kbd :class="['px-1.5 py-0.5 rounded text-[10px] font-mono border', isDarkMode ? 'bg-slate-700 border-slate-600 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-600']">↓</kbd>
+                  untuk pindah field berikutnya
+                </p>
+              </div>
+
+              <!-- Footer -->
+              <div :class="['px-6 py-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 border-t', themeClasses.modalFooter]">
+                <button type="button" @click="closeModal"
+                  :class="['inline-flex justify-center items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium focus:outline-none transition-all duration-150', themeClasses.modalCancel]">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                  Batal
+                </button>
+                <button type="button" @click="saveMember" :disabled="isLoading"
+                  class="inline-flex justify-center items-center gap-2 rounded-xl border border-transparent shadow-lg px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-sm font-semibold text-white hover:from-blue-700 hover:to-indigo-700 hover:shadow-blue-500/30 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none transition-all duration-150 active:scale-95">
+                  <svg v-if="isLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                  <svg v-else-if="isEditing" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  <svg v-else class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                  <span v-if="isLoading">Menyimpan...</span>
+                  <span v-else>{{ isEditing ? 'Update Data' : 'Simpan Anggota' }}</span>
+                </button>
+              </div>
+            </div>
+          </Transition>
         </div>
       </div>
-    </div>
+    </Transition>
 
   </AdminPageLayout>
 </template>
+
+<style scoped>
+.modal-overlay-fade-enter-active,
+.modal-overlay-fade-leave-active { transition: opacity 0.2s ease; }
+.modal-overlay-fade-enter-from,
+.modal-overlay-fade-leave-to { opacity: 0; }
+
+.modal-card-pop-enter-active {
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.modal-card-pop-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease-in;
+}
+.modal-card-pop-enter-from { opacity: 0; transform: scale(0.92) translateY(16px); }
+.modal-card-pop-leave-to { opacity: 0; transform: scale(0.96) translateY(8px); }
+
+.modal-input:focus { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); }
+</style>
 

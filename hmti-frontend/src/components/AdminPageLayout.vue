@@ -1,11 +1,14 @@
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import SpeedDialNav from './SpeedDialNav.vue'
 import AnimatedBackground from './AnimatedBackground.vue'
 import BrandLogo from './BrandLogo.vue'
+import axios from 'axios'
+import { useToast } from '../composables/useToast'
+import { useConfirm } from '../composables/useConfirm'
 
 const props = defineProps({
   section: {
@@ -135,16 +138,96 @@ const contentClasses = computed(() => [
   props.contentClass
 ])
 
+const { success: toastSuccess, error: toastError } = useToast()
+const { confirm: confirmDialog } = useConfirm()
+
 const goBackToMenu = () => {
   router.push('/admin')
 }
 
-const handleLogout = () => {
-  if (confirm(props.logoutMessage)) {
+const handleLogout = async () => {
+  const ok = await confirmDialog(props.logoutMessage)
+  if (ok) {
     authStore.logout()
     router.push('/')
   }
 }
+
+// ============================================================
+// BANNER NOTIFIKASI GENERATE TAGIHAN (Hanya untuk Bendahara)
+// ============================================================
+
+const isBendahara = computed(() => authStore.user?.role === 'bendahara')
+const generateStatus = ref(null)
+const isBannerVisible = ref(false)
+const isGeneratingFromBanner = ref(false)
+
+const getCurrentPeriod = () => {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+const getCurrentPeriodLabel = () => {
+  const now = new Date()
+  const months = ['Januari','Februari','Maret','April','Mei','Juni','Juli',
+    'Agustus','September','Oktober','November','Desember']
+  return `${months[now.getMonth()]} ${now.getFullYear()}`
+}
+
+const skipKey = computed(() => `skip_dues_${getCurrentPeriod()}`)
+
+const showBanner = computed(() =>
+  isBendahara.value &&
+  isBannerVisible.value &&
+  generateStatus.value &&
+  !generateStatus.value.generated
+)
+
+const checkGenerateStatus = async () => {
+  if (!isBendahara.value || !authStore.token) return
+  if (localStorage.getItem(skipKey.value) === 'true') return
+
+  try {
+    const period = getCurrentPeriod()
+    const res = await axios.get('http://localhost:3000/finance/generate-status', {
+      params: { period },
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    generateStatus.value = res.data
+    isBannerVisible.value = !res.data.generated
+  } catch (e) {
+    console.error('Gagal cek status tagihan:', e)
+  }
+}
+
+const dismissBanner = () => {
+  localStorage.setItem(skipKey.value, 'true')
+  isBannerVisible.value = false
+}
+
+const generateFromBanner = async () => {
+  isGeneratingFromBanner.value = true
+  try {
+    const period = getCurrentPeriod()
+    const [year, month] = period.split('-').map(Number)
+    await axios.post('http://localhost:3000/finance/generate-dues', {
+      period, month, year
+    }, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    isBannerVisible.value = false
+    generateStatus.value = { ...generateStatus.value, generated: true }
+    toastSuccess('Tagihan bulan ini berhasil dibuat untuk semua anggota aktif!')
+  } catch (e) {
+    toastError('Gagal membuat tagihan: ' + (e?.response?.data?.message || e.message))
+  } finally {
+    isGeneratingFromBanner.value = false
+  }
+}
+
+onMounted(() => {
+  checkGenerateStatus()
+})
 </script>
 
 <template>
@@ -217,6 +300,70 @@ const handleLogout = () => {
         </div>
       </div>
     </nav>
+
+    <!-- BANNER NOTIFIKASI TAGIHAN (Bendahara Only) -->
+    <div
+      v-if="showBanner"
+      class="relative z-30 max-w-7xl mx-auto px-4 mb-4"
+    >
+      <div
+        :class="[
+          'flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-5 py-4 rounded-2xl border shadow-lg',
+          isDarkMode
+            ? 'bg-amber-500/15 border-amber-400/30 text-amber-100'
+            : 'bg-amber-50 border-amber-300 text-amber-900'
+        ]"
+      >
+        <!-- Icon + Teks -->
+        <div class="flex items-start gap-3 flex-1 min-w-0">
+          <div class="shrink-0 mt-0.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+          </div>
+          <div>
+            <p class="font-bold text-sm leading-tight">
+              Tagihan Bulan {{ getCurrentPeriodLabel() }} Belum Dibuat
+            </p>
+            <p class="text-xs mt-0.5 opacity-80">
+              <template v-if="generateStatus?.pendingLateFeeCount > 0">
+                {{ generateStatus.pendingLateFeeCount }} anggota akan dikenakan denda keterlambatan dari bulan lalu.
+              </template>
+              <template v-else>
+                Belum ada anggota yang kena denda bulan ini.
+              </template>
+            </p>
+          </div>
+        </div>
+
+        <!-- Tombol Aksi -->
+        <div class="flex items-center gap-2 shrink-0">
+          <button
+            @click="generateFromBanner"
+            :disabled="isGeneratingFromBanner"
+            :class="[
+              'px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed',
+              isDarkMode
+                ? 'bg-amber-500 hover:bg-amber-400 text-slate-900 shadow-lg shadow-amber-500/30'
+                : 'bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/30'
+            ]"
+          >
+            {{ isGeneratingFromBanner ? 'Membuat...' : 'Buat Tagihan' }}
+          </button>
+          <button
+            @click="dismissBanner"
+            :class="[
+              'px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
+              isDarkMode
+                ? 'border-amber-400/30 text-amber-300 hover:bg-amber-400/10'
+                : 'border-amber-300 text-amber-700 hover:bg-amber-100'
+            ]"
+          >
+            Lewati Bulan Ini
+          </button>
+        </div>
+      </div>
+    </div>
 
     <SpeedDialNav />
 

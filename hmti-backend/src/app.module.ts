@@ -8,9 +8,10 @@ import { RolesGuard } from './guards/roles.guard';
 import { TransactionModule } from './transactions/transaction.module';
 import { FinanceModule } from './finance/finance.module';
 import { DocumentsModule } from './documents/documents.module';
+import { ShowcaseModule } from './showcase/showcase.module';
 
 @Module({
-  imports: [MembersModule, AuthModule, TransactionModule, FinanceModule, DocumentsModule],
+  imports: [MembersModule, AuthModule, TransactionModule, FinanceModule, DocumentsModule, ShowcaseModule],
   controllers: [AppController],
   providers: [
     AppService,

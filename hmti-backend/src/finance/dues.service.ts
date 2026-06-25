@@ -43,60 +43,94 @@ export class DuesService {
     };
   }
 
-  async processPayment(memberNia: string, period: string, amountPaid: number, transactionId: number) {
-    const dues = await this.prisma.dues.findFirst({
-      where: { memberNia, period }
-    });
+  // 2. FUNGSI CEK STATUS GENERATE (Untuk notifikasi banner bendahara)
+  async getGenerateStatus(period: string) {
+    const [yearStr, monthStr] = period.split('-');
+    const year = parseInt(yearStr);
+    const month = parseInt(monthStr);
 
-    if (!dues) {
-      throw new NotFoundException('Tagihan untuk periode ini tidak ditemukan.');
+    const config = await this.prisma.financeConfig.findFirst({ where: { isActive: true } });
+
+    // Cek apakah tagihan bulan ini sudah di-generate
+    const existingCount = await this.prisma.dues.count({ where: { period } });
+    if (existingCount > 0) {
+      return { generated: true, period, pendingLateFeeCount: 0 };
     }
 
-    const newTotalPaid = dues.amountPaid + amountPaid;
-    let creditAdded = 0;
-    let newStatus = 'PARTIAL';
-
-    if (newTotalPaid > dues.amountDue) {
-      creditAdded = newTotalPaid - dues.amountDue;
-      newStatus = 'OVERPAID';
-      dues.creditBalance = (dues.creditBalance || 0) + creditAdded;
-    } else if (newTotalPaid === dues.amountDue) {
-      newStatus = 'PAID';
-    } else {
-      dues.status = 'PARTIAL';
+    if (!config) {
+      return { generated: false, period, pendingLateFeeCount: 0, configMissing: true };
     }
 
-    // PERBAIKAN INI: Update menggunakan spread (...) agar data bersih
-    await this.prisma.dues.update({
-      where: { id: dues.id },
-      data: {
-        status: newStatus,
-        amountPaid: newTotalPaid,
-        creditBalance: dues.creditBalance,
-        transactions: {
-          connect: { id: transactionId }
+    // Hitung berapa anggota bulan lalu yang akan kena denda jika di-generate sekarang
+    let prevMonth = month - 1;
+    let prevYear = year;
+    if (prevMonth < 1) { prevMonth = 12; prevYear--; }
+    const prevPeriod = `${prevYear}-${String(prevMonth).padStart(2, '0')}`;
+
+    const now = new Date();
+    const finalDateOfPrevMonth = new Date(prevYear, prevMonth - 1, config.finalDay);
+
+    let pendingLateFeeCount = 0;
+    if (now > finalDateOfPrevMonth && config.lateFee > 0) {
+      pendingLateFeeCount = await this.prisma.dues.count({
+        where: {
+          period: prevPeriod,
+          status: { in: ['UNPAID', 'PARTIAL'] },
+          lateFeeApplied: false
         }
-      }
-    });
+      });
+    }
 
-    return { message: 'Pembayaran berhasil', status: newStatus, creditAdded };
+    return { generated: false, period, pendingLateFeeCount };
   }
 
-  // 3. FUNGSI GENERATE TAGIHAN (Sederhana: buat tagihan baru tanpa carryover credit)
+  // 3. FUNGSI GENERATE TAGIHAN BULANAN (dengan logika denda otomatis)
   async generateMonthlyDues(period: string, month: number, year: number) {
-    const config = await this.prisma.financeConfig.findFirst({ where: { isActive: true }});
+    const config = await this.prisma.financeConfig.findFirst({ where: { isActive: true } });
     if (!config) throw new Error('Konfigurasi Keuangan belum diatur.');
 
+    const now = new Date();
     const members = await this.prisma.member.findMany({ where: { status: 'Aktif' } });
-    const results: { nia: string; status: string; duesId?: number }[] = [];
+    const results: { nia: string; status: string; duesId?: number; lateFeeApplied?: boolean }[] = [];
 
     for (const member of members) {
+      // Skip jika tagihan periode ini sudah ada
       const existing = await this.prisma.dues.findFirst({ where: { memberNia: member.nia, period } });
       if (existing) {
         results.push({ nia: member.nia, status: 'SKIP' });
         continue;
       }
 
+      // STEP 1: Terapkan denda ke semua tagihan lama yang belum lunas & sudah lewat tanggal akhir
+      const previousUnpaidDues = await this.prisma.dues.findMany({
+        where: {
+          memberNia: member.nia,
+          status: { in: ['UNPAID', 'PARTIAL'] },
+          lateFeeApplied: false,
+          period: { not: period }
+        }
+      });
+
+      let lateFeeAppliedThisMember = false;
+      for (const prevDues of previousUnpaidDues) {
+        // Gunakan finalDate yang tersimpan, atau kalkulasi dari config jika belum ada
+        const finalDate = prevDues.finalDate
+          ? new Date(prevDues.finalDate)
+          : new Date(prevDues.year, prevDues.month - 1, config.finalDay);
+
+        if (now > finalDate) {
+          await this.prisma.dues.update({
+            where: { id: prevDues.id },
+            data: {
+              amountDue: prevDues.amountDue + config.lateFee,
+              lateFeeApplied: true
+            }
+          });
+          lateFeeAppliedThisMember = true;
+        }
+      }
+
+      // STEP 2: Hitung credit carryover dari bulan-bulan sebelumnya
       const creditRows = await this.prisma.dues.findMany({
         where: { memberNia: member.nia, creditBalance: { gt: 0 } },
         orderBy: [{ year: 'desc' }, { month: 'desc' }]
@@ -127,6 +161,7 @@ export class DuesService {
         });
       }
 
+      // STEP 3: Buat tagihan baru untuk bulan ini
       const paidFromCredit = Math.min(totalCredit, config.duesAmount);
       const creditBalance = Math.max(0, totalCredit - config.duesAmount);
       let status = 'UNPAID';
@@ -151,7 +186,7 @@ export class DuesService {
         }
       });
 
-      results.push({ nia: member.nia, status: 'CREATED', duesId: newDues.id });
+      results.push({ nia: member.nia, status: 'CREATED', duesId: newDues.id, lateFeeApplied: lateFeeAppliedThisMember });
     }
 
     return results;
@@ -204,7 +239,7 @@ export class DuesService {
       }
     }
 
-    // Jika masih ada sisa pembayaran, simpan sebagai credit pada dues terbaru (atau buat baru jika tidak ada)
+    // Jika masih ada sisa pembayaran, simpan sebagai credit pada dues terbaru
     if (remaining > 0) {
       const latest = await this.prisma.dues.findFirst({ where: { memberNia }, orderBy: [{ year: 'desc' }, { month: 'desc' }] });
       if (latest) {
@@ -262,25 +297,7 @@ export class DuesService {
     return { appliedTo, leftover: remaining };
   }
 
-  // HELPER: Ambil 3 periode sebelumnya untuk pengecekan credit
-  private getPreviousPeriod(year: number, month: number): string[] {
-    const periods: string[] = [];
-    let currentYear = year;
-    let currentMonth = month;
-
-    for (let i = 0; i < 3; i++) {
-      currentMonth--;
-      if (currentMonth < 1) {
-        currentMonth = 12;
-        currentYear--;
-      }
-      const periodStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
-      periods.push(periodStr);
-    }
-
-    return periods;
-  }
-
+  // 5. FUNGSI RINGKASAN STATUS SEMUA ANGGOTA
   async getSummary() {
     const dues = await this.prisma.dues.findMany({
       include: {
@@ -337,7 +354,7 @@ export class DuesService {
     return summary;
   }
 
-  // 4. FUNGSI CARI TAGIHAN
+  // 6. FUNGSI CARI TAGIHAN (Pagination)
   async findMany(query: any) {
     const { page = 1, limit = 10, search } = query;
     const skip = (page - 1) * limit;

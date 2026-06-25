@@ -55,10 +55,11 @@ model Dues {
   amountDue     Int      @default(0) // Tagihan wajib
   amountPaid    Int      @default(0) // Sudah bayar berapa
   status        String   @default("UNPAID") // UNPAID, PARTIAL, PAID, OVERPAID
-  creditBalance Int      @default(0) // Sisa uang (Lebih bayar) untuk bulan depan
-  dueDate       DateTime? // Jatuh tempo
-  finalDate     DateTime? // Tanggal terakhir pembayaran
-  createdAt     DateTime @default(now())
+  creditBalance  Int      @default(0) // Sisa uang (Lebih bayar) untuk bulan depan
+  lateFeeApplied Boolean  @default(false) // Mencegah denda ditambahkan dua kali
+  dueDate        DateTime? // Jatuh tempo
+  finalDate      DateTime? // Tanggal terakhir pembayaran
+  createdAt      DateTime @default(now())
   
   member        Member   @relation("MemberDues", fields: [memberNia], references: [nia])
   transactions  Transaction[] @relation("TransactionDues")
@@ -74,7 +75,22 @@ model FinanceConfig {
   isActive  Boolean @default(true) // Hanya config aktif yang digunakan
 }
 
-// Tambahkan ini di schema.prisma kamu
+model ShowcaseContent {
+  id          Int       @id @default(autoincrement())
+  category    String    // 'prestasi' | 'event' | 'kegiatan'
+  title       String
+  description String?
+  dateTime    DateTime?
+  isVisible   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // FK ke Document — tidak @unique agar satu dokumen bisa jadi showcase di beberapa periode
+  documentId  Int?
+  document    Document? @relation("ShowcaseDocument", fields: [documentId], references: [id])
+
+  @@map("showcase_contents")
+}
 
 model Document {
   id            Int      @id @default(autoincrement())
@@ -91,8 +107,9 @@ model Document {
   uploadDate    DateTime @default(now())
   
   // Relasi: Siapa yang upload?
-  uploadedByNia String
-  uploader      Member   @relation("DocumentUploader", fields: [uploadedByNia], references: [nia])
+  uploadedByNia    String
+  uploader         Member           @relation("DocumentUploader", fields: [uploadedByNia], references: [nia])
+  showcaseContents ShowcaseContent[] @relation("ShowcaseDocument")
 
   @@index([type])
   @@index([uploadDate])

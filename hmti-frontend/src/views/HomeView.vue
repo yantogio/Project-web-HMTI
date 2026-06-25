@@ -31,6 +31,7 @@ const handleScroll = () => {
 const officers = ref([])
 const isLoading = ref(true)
 const activities = ref([])
+const events = ref([])
 const achievements = ref([])
 
 // Carousel
@@ -118,6 +119,31 @@ const setupStatsObserver = () => {
   statsObserver.observe(el)
 }
 
+// Semua media publik diambil via stream endpoint /documents/download/:id
+const getDocMediaUrl = (documentId) => {
+  if (!documentId) return null
+  return `http://localhost:3000/documents/download/${documentId}`
+}
+
+const formatDate = (dateTime) => {
+  if (!dateTime) return ''
+  return new Date(dateTime).toLocaleDateString('id-ID', {
+    day: 'numeric', month: 'long', year: 'numeric'
+  })
+}
+
+const fetchShowcaseActive = async () => {
+  try {
+    const res = await axios.get('http://localhost:3000/showcase/active')
+    const all = res.data
+    activities.value = all.filter(i => i.category === 'kegiatan')
+    events.value = all.filter(i => i.category === 'event')
+    achievements.value = all.filter(i => i.category === 'prestasi')
+  } catch (e) {
+    console.error('Gagal memuat showcase:', e)
+  }
+}
+
 const fetchOfficers = async () => {
   try {
     isLoading.value = true
@@ -135,7 +161,7 @@ const fetchOfficers = async () => {
 }
 
 onMounted(async () => {
-  await fetchOfficers()
+  await Promise.all([fetchOfficers(), fetchShowcaseActive()])
   startAutoPlay()
   await nextTick()
   setupScrollAnimations()
@@ -495,7 +521,19 @@ const achievementPlaceholders = [
           </div>
 
           <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Cards populated from data -->
+            <div v-for="item in activities" :key="item.id"
+              :class="['rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group', themeClasses.cardGlass]">
+              <div class="h-48 bg-slate-800 overflow-hidden">
+                <img v-if="item.document?.id" :src="getDocMediaUrl(item.document.id)"
+                  class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy">
+                <div v-else class="w-full h-full flex items-center justify-center text-5xl opacity-30">📝</div>
+              </div>
+              <div class="p-5">
+                <h4 :class="['font-bold text-base mb-1.5', themeClasses.text]">{{ item.title }}</h4>
+                <p :class="['text-sm line-clamp-2 mb-3', themeClasses.textMuted]">{{ item.description }}</p>
+                <p v-if="item.dateTime" :class="['text-xs font-medium', themeClasses.textMuted]">📅 {{ formatDate(item.dateTime) }}</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -519,7 +557,7 @@ const achievementPlaceholders = [
             <div class="h-1 w-20 bg-gradient-to-r from-purple-500 to-pink-500 mt-2 rounded-full"></div>
           </div>
 
-          <div v-if="activities.length === 0"
+          <div v-if="events.length === 0"
             class="scroll-reveal relative rounded-2xl p-7 md:p-12 text-center overflow-hidden transition-colors duration-500"
             :class="isDarkMode ? 'bg-gradient-to-br from-purple-900/30 to-slate-900/40 border border-purple-500/20' : 'bg-white border border-purple-100 shadow-xl'">
             <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none">
@@ -530,6 +568,25 @@ const achievementPlaceholders = [
               <p :class="['max-w-lg mx-auto text-sm md:text-base', themeClasses.textMuted]">
                 Tetap pantau halaman ini untuk informasi seminar, workshop, dan kompetisi skala besar.
               </p>
+            </div>
+          </div>
+
+          <div v-else class="scroll-reveal grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div v-for="item in events" :key="item.id"
+              :class="['rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group', themeClasses.cardGlass]">
+              <div class="flex gap-0">
+                <div v-if="item.document?.id" class="w-32 flex-shrink-0 bg-slate-800 overflow-hidden">
+                  <img :src="getDocMediaUrl(item.document.id)" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy">
+                </div>
+                <div v-else :class="['w-14 flex-shrink-0 flex items-center justify-center text-3xl', isDarkMode ? 'bg-purple-900/30' : 'bg-purple-50']">🎉</div>
+                <div class="p-5 flex-1 min-w-0">
+                  <h4 :class="['font-bold text-base mb-1.5 truncate', themeClasses.text]">{{ item.title }}</h4>
+                  <p :class="['text-sm line-clamp-2 mb-2', themeClasses.textMuted]">{{ item.description }}</p>
+                  <span v-if="item.dateTime" class="text-xs font-bold text-purple-400">
+                    📅 {{ formatDate(item.dateTime) }}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -559,16 +616,29 @@ const achievementPlaceholders = [
             <div v-for="(item, i) in achievementPlaceholders" :key="i"
               class="stagger-child rounded-2xl p-6 md:p-8 border-2 border-dashed flex flex-col items-center justify-center text-center min-h-[160px] md:min-h-[200px] transition-all duration-300 hover:border-yellow-500/50 group cursor-default"
               :class="isDarkMode ? 'border-white/10 bg-white/3 hover:bg-white/8' : 'border-slate-200 bg-slate-50/80 hover:bg-white hover:shadow-lg'">
-              <div
-                class="text-4xl md:text-5xl mb-3 grayscale group-hover:grayscale-0 transition-all duration-300 transform group-hover:scale-110">
+              <div class="text-4xl md:text-5xl mb-3 grayscale group-hover:grayscale-0 transition-all duration-300 transform group-hover:scale-110">
                 {{ item.emoji }}
               </div>
-              <span :class="['text-xs md:text-sm font-bold', isDarkMode ? 'text-slate-400' : 'text-slate-500']">{{
-                item.label }}</span>
+              <span :class="['text-xs md:text-sm font-bold', isDarkMode ? 'text-slate-400' : 'text-slate-500']">{{ item.label }}</span>
             </div>
             <div class="sm:col-span-3 text-center mt-2">
-              <p :class="['text-xs italic', themeClasses.textMuted]">*Data prestasi akan ditampilkan secara otomatis
-                setelah diinput.</p>
+              <p :class="['text-xs italic', themeClasses.textMuted]">*Data prestasi akan ditampilkan secara otomatis setelah diinput.</p>
+            </div>
+          </div>
+
+          <div v-else class="scroll-reveal grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            <div v-for="item in achievements" :key="item.id"
+              class="stagger-child rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-yellow-500/40 group"
+              :class="isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/8' : 'bg-white border-slate-200 hover:shadow-lg'">
+              <div class="h-40 bg-slate-800 overflow-hidden relative">
+                <img v-if="item.document?.id" :src="getDocMediaUrl(item.document.id)"
+                  class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy">
+                <div v-else class="w-full h-full flex items-center justify-center text-5xl opacity-30">🏆</div>
+              </div>
+              <div class="p-4">
+                <h4 :class="['font-bold text-base mb-1', themeClasses.text]">{{ item.title }}</h4>
+                <p :class="['text-sm line-clamp-2', themeClasses.textMuted]">{{ item.description }}</p>
+              </div>
             </div>
           </div>
         </div>

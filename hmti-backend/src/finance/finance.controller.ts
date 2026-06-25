@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { FinanceConfigService } from './finance-config.service';
 import { DuesService } from './dues.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -15,13 +15,12 @@ export class FinanceController {
 
   // 1. Ambil Konfigurasi
   @Get('config')
-  @UseGuards(JwtAuthGuard) // Siapa lihat config
+  @UseGuards(JwtAuthGuard)
   getConfig() {
     return this.configService.getActiveConfig();
   }
 
-  // 2. Update Konfigurasi (Hanya Admin/Bendahara)
-  // Body: { duesAmount, lateFee, dueDay, finalDay } — bisa diatur dari frontend
+  // 2. Update Konfigurasi (Hanya Bendahara)
   @Post('config')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('bendahara')
@@ -30,7 +29,14 @@ export class FinanceController {
     return this.configService.updateConfig(data);
   }
 
-  // 3. Generate Tagihan Bulanan (Manual Trigger)
+  // 3. Cek Status Generate Tagihan (untuk banner notifikasi)
+  @Get('generate-status')
+  @UseGuards(JwtAuthGuard)
+  getGenerateStatus(@Query('period') period: string) {
+    return this.duesService.getGenerateStatus(period);
+  }
+
+  // 4. Generate Tagihan Bulanan (Manual Trigger — Bendahara & Ketum)
   @Post('generate-dues')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ketum', 'bendahara')
