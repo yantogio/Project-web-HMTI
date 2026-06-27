@@ -2,7 +2,7 @@
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
-import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import AnimatedBackground from '../components/AnimatedBackground.vue'
 import BrandLogo from '../components/BrandLogo.vue'
 // import axios from 'axios' // Opsional, kalau mau taruh data kecil di navbar
@@ -129,6 +129,16 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (scrollObserver) scrollObserver.disconnect()
+})
+
+watch(isDarkMode, async () => {
+  await nextTick()
+  document.querySelectorAll('.scroll-reveal, .stagger-child').forEach(el => {
+    const rect = el.getBoundingClientRect()
+    if (rect.top < window.innerHeight + 100 && rect.bottom >= 0) {
+      el.classList.add('is-visible')
+    }
+  })
 })
 </script>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useThemeStore } from '../stores/theme'
@@ -9,6 +9,14 @@ import BrandLogo from '../components/BrandLogo.vue'
 const router = useRouter()
 const themeStore = useThemeStore()
 const isDarkMode = computed(() => themeStore.isDarkMode)
+
+const BASE = 'http://localhost:3000'
+// Pola sama seperti getDocPreviewUrl di ShowcaseHub — gunakan NIA sebagai identifier
+const getAvatarUrl = (nia, avatarUrl) => {
+  if (!avatarUrl || !nia) return null
+  const qs = avatarUrl.includes('?') ? avatarUrl.slice(avatarUrl.indexOf('?')) : ''
+  return `${BASE}/members/${nia}/avatar${qs}`
+}
 
 const isHeaderVisible = ref(true)
 const lastScrollY = ref(0)
@@ -59,27 +67,45 @@ const stopAutoPlay = () => {
   if (slideInterval.value) clearInterval(slideInterval.value)
 }
 
-// Animated stats
+// Stats: total anggota dari API + link sosmed
 const statsTriggered = ref(false)
-const stats = ref([
-  { label: 'Anggota Aktif', count: 0, target: 150, suffix: '+', icon: '👥', color: 'from-blue-400 to-blue-600' },
-  { label: 'Program Kegiatan', count: 0, target: 42, suffix: '+', icon: '📅', color: 'from-purple-400 to-purple-600' },
-  { label: 'Prestasi Diraih', count: 0, target: 28, suffix: '+', icon: '🏆', color: 'from-yellow-400 to-orange-500' },
-  { label: 'Tahun Berdiri', count: 0, target: 2019, suffix: '', icon: '📌', color: 'from-teal-400 to-teal-600' },
-])
+const totalMembers = ref(0)
+const totalMembersCount = ref(0)
 
-const animateCounter = (stat) => {
-  const stepTime = 50
-  const steps = 1500 / stepTime
-  const increment = Math.ceil(stat.target / steps)
+// Ketum untuk WhatsApp
+const ketumMember = ref(null)
+
+const ketumWhatsappUrl = computed(() => {
+  if (!ketumMember.value?.phone) return null
+  // wa.me butuh format internasional tanpa + (628xxx), normalisasi dari format apapun di DB
+  let phone = ketumMember.value.phone.trim().replace(/[\s\-\(\)\.]/g, '')
+  if (phone.startsWith('+')) phone = phone.slice(1)
+  else if (phone.startsWith('0')) phone = '62' + phone.slice(1)
+  const msg = encodeURIComponent('Halo Ketua Umum HMTI, saya ingin bertanya mengenai HMTI Universitas Bani Saleh.')
+  return `https://wa.me/${phone}?text=${msg}`
+})
+
+const openKetumWhatsapp = () => {
+  if (ketumWhatsappUrl.value) {
+    window.open(ketumWhatsappUrl.value, '_blank', 'noopener,noreferrer')
+  }
+}
+
+const animateTotalMembers = () => {
+  const target = totalMembers.value
+  if (target === 0) { totalMembersCount.value = 0; return }
+  const stepTime = 40
+  const duration = 1400
+  const steps = duration / stepTime
+  const increment = Math.ceil(target / steps)
   let current = 0
   const timer = setInterval(() => {
     current += increment
-    if (current >= stat.target) {
-      stat.count = stat.target
+    if (current >= target) {
+      totalMembersCount.value = target
       clearInterval(timer)
     } else {
-      stat.count = current
+      totalMembersCount.value = current
     }
   }, stepTime)
 }
@@ -110,19 +136,64 @@ const setupStatsObserver = () => {
   statsObserver = new IntersectionObserver((entries) => {
     if (entries[0].isIntersecting && !statsTriggered.value) {
       statsTriggered.value = true
-      stats.value.forEach((stat, i) => {
-        setTimeout(() => animateCounter(stat), i * 200)
-      })
+      animateTotalMembers()
       statsObserver.disconnect()
     }
   }, { threshold: 0.2 })
   statsObserver.observe(el)
 }
 
-// Semua media publik diambil via stream endpoint /documents/download/:id
 const getDocMediaUrl = (documentId) => {
   if (!documentId) return null
-  return `http://localhost:3000/documents/download/${documentId}`
+  return `http://localhost:3000/documents/preview/${documentId}`
+}
+
+// --- PREVIEW MODAL STATE ---
+const selectedItem = ref(null)
+const previewVideoEl = ref(null)
+
+const previewRenderType = computed(() => {
+  const cat = selectedItem.value?.document?.category
+  if (!cat) return 'img'
+  return cat.startsWith('video/') ? 'video' : 'img'
+})
+
+const openItemPreview = (item) => {
+  if (!item.document?.id) return
+  selectedItem.value = item
+}
+
+const closeItemPreview = () => {
+  if (previewVideoEl.value) {
+    previewVideoEl.value.pause()
+    previewVideoEl.value.src = ''
+    previewVideoEl.value.load()
+  }
+  selectedItem.value = null
+}
+
+// --- DIRECTIVE: autoplay video saat masuk viewport, pause saat keluar ---
+const vAutoplayOnVisible = {
+  mounted(el) {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.play().catch(() => {})
+        } else {
+          el.pause()
+        }
+      },
+      { threshold: 0.4 }
+    )
+    observer.observe(el)
+    el._autoplayObserver = observer
+  },
+  unmounted(el) {
+    if (el._autoplayObserver) {
+      el._autoplayObserver.disconnect()
+      delete el._autoplayObserver
+    }
+  }
 }
 
 const formatDate = (dateTime) => {
@@ -148,10 +219,22 @@ const fetchOfficers = async () => {
   try {
     isLoading.value = true
     const response = await axios.get('http://localhost:3000/members')
-    const data = response.data.filter(m => m.role !== 'anggota' && m.status === 'Aktif')
+    const all = response.data
+
+    // Total anggota dari database
+    totalMembers.value = all.length
+
+    // Cari ketum aktif dengan nomor HP, ambil yang paling baru dibuat
+    const ketumCandidates = all
+      .filter(m => m.role === 'ketum' && m.status === 'Aktif' && m.phone)
+      .sort((a, b) => new Date(b.joinedAt) - new Date(a.joinedAt))
+    ketumMember.value = ketumCandidates[0] || null
+
+    // Officer carousel: role selain anggota dan aktif
+    const data = all.filter(m => m.role !== 'anggota' && m.status === 'Aktif')
     officers.value = data.map(member => ({
       ...member,
-      img: `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=random&color=fff&size=256&font-size=0.33`
+      img: getAvatarUrl(member.nia, member.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=random&color=fff&size=256&font-size=0.33`
     }))
   } catch (error) {
     console.error('Gagal mengambil data pengurus:', error)
@@ -203,7 +286,7 @@ const themeClasses = computed(() => {
 })
 
 const headingGradientClass = computed(() => [
-  'bg-clip-text text-transparent bg-gradient-to-r',
+  'bg-clip-text text-transparent bg-gradient-to-r py-1',
   themeClasses.value.gradientText
 ])
 
@@ -212,6 +295,30 @@ const achievementPlaceholders = [
   { emoji: '🏆', label: 'Best Speaker' },
   { emoji: '🎖️', label: 'Top Innovation' },
 ]
+
+// --- OFFICER PROFILE POPUP ---
+const selectedOfficer = ref(null)
+const isOfficerProfileOpen = ref(false)
+
+const openOfficerProfile = (officer) => {
+  selectedOfficer.value = officer
+  isOfficerProfileOpen.value = true
+}
+
+const closeOfficerProfile = () => {
+  isOfficerProfileOpen.value = false
+  selectedOfficer.value = null
+}
+
+watch(isDarkMode, async () => {
+  await nextTick()
+  document.querySelectorAll('.scroll-reveal, .stagger-child').forEach(el => {
+    const rect = el.getBoundingClientRect()
+    if (rect.top < window.innerHeight + 100 && rect.bottom >= 0) {
+      el.classList.add('is-visible')
+    }
+  })
+})
 </script>
 
 <template>
@@ -321,10 +428,10 @@ const achievementPlaceholders = [
           </div>
 
           <!-- Headline -->
-          <h1 class="hero-fade-up text-4xl sm:text-5xl md:text-7xl font-extrabold mb-5 leading-tight tracking-tight"
+          <h1 class="hero-fade-up text-4xl sm:text-5xl md:text-7xl font-extrabold mb-4 tracking-tight leading-[1.15]"
             style="animation-delay:0.12s;">
-            <span :class="headingGradientClass">Official Website HMTI</span><br>
-            <span :class="headingGradientClass">Universitas Bani Saleh</span>
+            <span :class="['block', ...headingGradientClass]">Official Website HMTI</span>
+            <span :class="['block', ...headingGradientClass]">Universitas Bani Saleh</span>
           </h1>
 
           <!-- Subheadline -->
@@ -343,9 +450,16 @@ const achievementPlaceholders = [
               🚀 Gabung Sekarang
             </button>
             <button
-              class="px-7 md:px-9 py-3.5 md:py-4 rounded-xl font-bold border text-sm md:text-base transition-all duration-200 transform hover:-translate-y-1"
-              :class="isDarkMode ? 'border-white/20 text-white hover:bg-white/8 hover:border-white/40' : 'border-primary-blue text-primary-blue hover:bg-primary-blue/5 hover:border-primary-blue-dark'">
-              📖 Pelajari Lebih Lanjut
+              @click="openKetumWhatsapp"
+              class="px-7 md:px-9 py-3.5 md:py-4 rounded-xl font-bold border text-sm md:text-base transition-all duration-200 transform hover:-translate-y-1 flex items-center gap-2"
+              :class="[isDarkMode ? 'border-white/20 text-white hover:bg-white/8 hover:border-white/40' : 'border-primary-blue text-primary-blue hover:bg-primary-blue/5 hover:border-primary-blue-dark', !ketumWhatsappUrl ? 'opacity-60 cursor-not-allowed' : '']"
+              :disabled="!ketumWhatsappUrl"
+              :title="ketumWhatsappUrl ? 'Chat via WhatsApp' : 'Nomor Ketua Umum belum tersedia'"
+            >
+              <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+              </svg>
+              Hubungi Ketua Umum
             </button>
           </div>
 
@@ -367,15 +481,62 @@ const achievementPlaceholders = [
       <section id="stats-section" class="py-12 md:py-16 px-4">
         <div class="max-w-5xl mx-auto">
           <div class="scroll-reveal grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
-            <div v-for="(stat, i) in stats" :key="i"
-              :class="['stagger-child rounded-2xl p-5 md:p-6 text-center border transition-all duration-300 cursor-default', themeClasses.statCard]">
-              <div class="text-2xl md:text-3xl mb-2">{{ stat.icon }}</div>
-              <div
-                :class="['text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-br', stat.color]">
-                {{ stat.count }}{{ stat.suffix }}
+
+            <!-- Card 1: Total Anggota (dari API, animated) -->
+            <div :class="['stagger-child rounded-2xl p-5 md:p-6 text-center border transition-all duration-300 cursor-default', themeClasses.statCard]">
+              <div class="text-2xl md:text-3xl mb-2">👥</div>
+              <div class="text-3xl md:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-br from-blue-400 to-blue-600">
+                {{ totalMembersCount }}
               </div>
-              <div :class="['text-xs md:text-sm font-semibold mt-1.5', themeClasses.textMuted]">{{ stat.label }}</div>
+              <div :class="['text-xs md:text-sm font-semibold mt-1.5', themeClasses.textMuted]">Total Anggota</div>
             </div>
+
+            <!-- Card 2: Instagram -->
+            <a
+              href="https://www.instagram.com/hmtibansal?igsh=MTRhMDgydHpqazJsZw=="
+              target="_blank" rel="noopener noreferrer"
+              :class="['stagger-child rounded-2xl p-5 md:p-6 text-center border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer group block no-underline', themeClasses.statCard]"
+            >
+              <div class="w-10 h-10 mx-auto mb-3 rounded-xl bg-gradient-to-br from-pink-500 via-red-500 to-yellow-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+                </svg>
+              </div>
+              <div class="text-sm font-black bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-purple-600">@hmtibansal</div>
+              <div :class="['text-xs md:text-sm font-semibold mt-1', themeClasses.textMuted]">Instagram</div>
+            </a>
+
+            <!-- Card 3: YouTube -->
+            <a
+              href="https://youtube.com/@hmtibansal?si=wnsLi1VSEX1QDFCr"
+              target="_blank" rel="noopener noreferrer"
+              :class="['stagger-child rounded-2xl p-5 md:p-6 text-center border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer group block no-underline', themeClasses.statCard]"
+            >
+              <div class="w-10 h-10 mx-auto mb-3 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M23.495 6.205a3.007 3.007 0 00-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 00.527 6.205a31.247 31.247 0 00-.522 5.805 31.247 31.247 0 00.522 5.783 3.007 3.007 0 002.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 002.088-2.088 31.247 31.247 0 00.5-5.783 31.247 31.247 0 00-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+                </svg>
+              </div>
+              <div class="text-sm font-black bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-red-700">@hmtibansal</div>
+              <div :class="['text-xs md:text-sm font-semibold mt-1', themeClasses.textMuted]">YouTube</div>
+            </a>
+
+            <!-- Card 4: TikTok -->
+            <a
+              href="https://www.tiktok.com/@hmti.ubs?_r=1&_t=ZS-97X51AD8ujy"
+              target="_blank" rel="noopener noreferrer"
+              :class="['stagger-child rounded-2xl p-5 md:p-6 text-center border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer group block no-underline', themeClasses.statCard]"
+            >
+              <div class="w-10 h-10 mx-auto mb-3 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300"
+                   :class="isDarkMode ? 'bg-white/10 border border-white/20' : 'bg-slate-800'">
+                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 00-.79-.05A6.34 6.34 0 003.15 15.3a6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z"/>
+                </svg>
+              </div>
+              <div class="text-sm font-black bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-pink-400">@hmti.ubs</div>
+              <div :class="['text-xs md:text-sm font-semibold mt-1', themeClasses.textMuted]">TikTok</div>
+            </a>
+
           </div>
         </div>
       </section>
@@ -421,7 +582,8 @@ const achievementPlaceholders = [
                 :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
                 <div v-for="(officer, index) in officers" :key="officer.nia" class="w-full flex-shrink-0 p-1 md:p-2">
                   <div
-                    :class="['rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-5 md:gap-8 border transition-all duration-300', themeClasses.cardGlass]">
+                    @click="openOfficerProfile(officer)"
+                    :class="['rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-5 md:gap-8 border transition-all duration-300 cursor-pointer hover:scale-[1.01]', themeClasses.cardGlass]">
 
                     <!-- Avatar -->
                     <div class="relative flex-shrink-0">
@@ -522,9 +684,24 @@ const achievementPlaceholders = [
 
           <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div v-for="item in activities" :key="item.id"
-              :class="['rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group', themeClasses.cardGlass]">
-              <div class="h-48 bg-slate-800 overflow-hidden">
-                <img v-if="item.document?.id" :src="getDocMediaUrl(item.document.id)"
+              :class="['rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group cursor-pointer', themeClasses.cardGlass]"
+              @click="openItemPreview(item)">
+              <div class="aspect-square bg-slate-800 overflow-hidden relative">
+                <template v-if="item.document?.id && item.document.category?.startsWith('video/')">
+                  <video
+                    v-autoplay-on-visible
+                    :src="getDocMediaUrl(item.document.id)"
+                    class="w-full h-full object-cover"
+                    preload="metadata" muted playsinline loop
+                    @loadedmetadata="(e) => { if (e.target.duration > 0.1) e.target.currentTime = 0.5 }"
+                  ></video>
+                  <div class="absolute bottom-2 right-2 bg-black/50 rounded-full p-1 pointer-events-none">
+                    <svg class="w-3 h-3 text-white/70" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                    </svg>
+                  </div>
+                </template>
+                <img v-else-if="item.document?.id" :src="getDocMediaUrl(item.document.id)"
                   class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy">
                 <div v-else class="w-full h-full flex items-center justify-center text-5xl opacity-30">📝</div>
               </div>
@@ -571,21 +748,33 @@ const achievementPlaceholders = [
             </div>
           </div>
 
-          <div v-else class="scroll-reveal grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div v-else class="scroll-reveal grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div v-for="item in events" :key="item.id"
-              :class="['rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group', themeClasses.cardGlass]">
-              <div class="flex gap-0">
-                <div v-if="item.document?.id" class="w-32 flex-shrink-0 bg-slate-800 overflow-hidden">
-                  <img :src="getDocMediaUrl(item.document.id)" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy">
-                </div>
-                <div v-else :class="['w-14 flex-shrink-0 flex items-center justify-center text-3xl', isDarkMode ? 'bg-purple-900/30' : 'bg-purple-50']">🎉</div>
-                <div class="p-5 flex-1 min-w-0">
-                  <h4 :class="['font-bold text-base mb-1.5 truncate', themeClasses.text]">{{ item.title }}</h4>
-                  <p :class="['text-sm line-clamp-2 mb-2', themeClasses.textMuted]">{{ item.description }}</p>
-                  <span v-if="item.dateTime" class="text-xs font-bold text-purple-400">
-                    📅 {{ formatDate(item.dateTime) }}
-                  </span>
-                </div>
+              :class="['rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group cursor-pointer', themeClasses.cardGlass]"
+              @click="openItemPreview(item)">
+              <div class="aspect-square bg-slate-800 overflow-hidden relative">
+                <template v-if="item.document?.id && item.document.category?.startsWith('video/')">
+                  <video
+                    v-autoplay-on-visible
+                    :src="getDocMediaUrl(item.document.id)"
+                    class="w-full h-full object-cover"
+                    preload="metadata" muted playsinline loop
+                    @loadedmetadata="(e) => { if (e.target.duration > 0.1) e.target.currentTime = 0.5 }"
+                  ></video>
+                  <div class="absolute bottom-2 right-2 bg-black/50 rounded-full p-1 pointer-events-none">
+                    <svg class="w-3 h-3 text-white/70" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                    </svg>
+                  </div>
+                </template>
+                <img v-else-if="item.document?.id" :src="getDocMediaUrl(item.document.id)"
+                  class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy">
+                <div v-else class="w-full h-full flex items-center justify-center text-5xl opacity-30">🎉</div>
+              </div>
+              <div class="p-5">
+                <h4 :class="['font-bold text-base mb-1.5', themeClasses.text]">{{ item.title }}</h4>
+                <p :class="['text-sm line-clamp-2 mb-3', themeClasses.textMuted]">{{ item.description }}</p>
+                <p v-if="item.dateTime" class="text-xs font-bold text-purple-400">📅 {{ formatDate(item.dateTime) }}</p>
               </div>
             </div>
           </div>
@@ -628,10 +817,25 @@ const achievementPlaceholders = [
 
           <div v-else class="scroll-reveal grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             <div v-for="item in achievements" :key="item.id"
-              class="stagger-child rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-yellow-500/40 group"
-              :class="isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/8' : 'bg-white border-slate-200 hover:shadow-lg'">
-              <div class="h-40 bg-slate-800 overflow-hidden relative">
-                <img v-if="item.document?.id" :src="getDocMediaUrl(item.document.id)"
+              class="stagger-child rounded-2xl overflow-hidden border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-yellow-500/40 group cursor-pointer"
+              :class="isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/8' : 'bg-white border-slate-200 hover:shadow-lg'"
+              @click="openItemPreview(item)">
+              <div class="aspect-square bg-slate-800 overflow-hidden relative">
+                <template v-if="item.document?.id && item.document.category?.startsWith('video/')">
+                  <video
+                    v-autoplay-on-visible
+                    :src="getDocMediaUrl(item.document.id)"
+                    class="w-full h-full object-cover"
+                    preload="metadata" muted playsinline loop
+                    @loadedmetadata="(e) => { if (e.target.duration > 0.1) e.target.currentTime = 0.5 }"
+                  ></video>
+                  <div class="absolute bottom-2 right-2 bg-black/50 rounded-full p-1 pointer-events-none">
+                    <svg class="w-3 h-3 text-white/70" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                    </svg>
+                  </div>
+                </template>
+                <img v-else-if="item.document?.id" :src="getDocMediaUrl(item.document.id)"
                   class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy">
                 <div v-else class="w-full h-full flex items-center justify-center text-5xl opacity-30">🏆</div>
               </div>
@@ -664,10 +868,16 @@ const achievementPlaceholders = [
           <p :class="['mb-8 text-sm md:text-base max-w-xl mx-auto', themeClasses.textMuted]">
             Jadilah bagian dari komunitas mahasiswa Teknik Informatika yang inovatif dan berprestasi.
           </p>
-          <button @click="router.push('/login')"
-            :class="['px-8 md:px-10 py-3.5 md:py-4 rounded-xl font-bold text-white text-sm md:text-base transition-all duration-200 transform hover:-translate-y-1 hover:scale-105',
-              isDarkMode ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:shadow-2xl hover:shadow-blue-500/30' : 'bg-gradient-to-r from-accent-orange to-accent-orange-dark hover:shadow-2xl hover:shadow-accent-orange/30']">
-            Daftar Sekarang →
+          <button @click="openKetumWhatsapp"
+            :class="['inline-flex items-center gap-2.5 px-8 md:px-10 py-3.5 md:py-4 rounded-xl font-bold text-white text-sm md:text-base transition-all duration-200 transform hover:-translate-y-1 hover:scale-105',
+              isDarkMode ? 'bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 hover:shadow-2xl hover:shadow-green-500/30' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:shadow-2xl hover:shadow-green-500/30',
+              !ketumWhatsappUrl ? 'opacity-60 cursor-not-allowed' : '']"
+            :disabled="!ketumWhatsappUrl"
+          >
+            <svg class="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+            </svg>
+            Hubungi Ketua Umum →
           </button>
         </div>
       </section>
@@ -696,5 +906,163 @@ const achievementPlaceholders = [
       </footer>
 
     </main>
+
+    <!-- OFFICER PROFILE POPUP -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="isOfficerProfileOpen && selectedOfficer"
+          class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          @click.self="closeOfficerProfile"
+        >
+          <Transition name="modal-zoom">
+            <div
+              v-if="isOfficerProfileOpen"
+              :class="['relative w-full max-w-4xl rounded-3xl shadow-2xl border overflow-hidden flex flex-col md:flex-row', isDarkMode ? 'bg-slate-900 text-white border-white/10' : 'bg-white text-slate-900 border-slate-200']"
+              style="max-height: 90vh"
+            >
+              <!-- Close -->
+              <button
+                @click="closeOfficerProfile"
+                class="absolute top-4 left-4 z-20 bg-slate-500/20 hover:bg-slate-500/40 p-2 rounded-full transition-all duration-150"
+                :class="isDarkMode ? 'text-white' : 'text-slate-700'"
+              >
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+
+              <!-- LEFT: Info Details -->
+              <div class="flex-1 p-8 pt-14 md:pt-8 flex flex-col justify-center overflow-y-auto">
+                <div class="mb-5">
+                  <span class="text-xs font-black uppercase tracking-widest text-blue-500">Detail Pengurus</span>
+                  <h3 class="text-2xl font-black mt-2 leading-tight" :class="isDarkMode ? 'text-white' : 'text-slate-900'">
+                    {{ selectedOfficer.name }}
+                  </h3>
+                  <p class="text-sm font-bold mt-1 text-blue-500">{{ selectedOfficer.jabatan }}</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                  <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">NIA</div>
+                    <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedOfficer.nia }}</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">NPM</div>
+                    <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedOfficer.npm || '-' }}</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Role</div>
+                    <div class="font-semibold mt-0.5 capitalize" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedOfficer.role }}</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Angkatan</div>
+                    <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedOfficer.angkatan || '-' }}</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10 col-span-2">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Status Keanggotaan</div>
+                    <div class="mt-1.5 inline-block text-xs font-bold px-3 py-1 rounded-full"
+                         :class="selectedOfficer.status === 'Aktif'
+                           ? 'bg-blue-500/20 text-blue-500'
+                           : 'bg-red-500/20 text-red-500'">
+                      {{ selectedOfficer.status }}
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="selectedOfficer.email || selectedOfficer.phone"
+                     class="mt-4 p-4 rounded-xl bg-slate-500/5 border border-slate-500/10 space-y-2 text-sm">
+                  <div v-if="selectedOfficer.email" class="flex items-center gap-3">
+                    <span class="opacity-60">📧</span>
+                    <span class="font-medium truncate" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedOfficer.email }}</span>
+                  </div>
+                  <div v-if="selectedOfficer.phone" class="flex items-center gap-3">
+                    <span class="opacity-60">📞</span>
+                    <span class="font-medium" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedOfficer.phone }}</span>
+                  </div>
+                </div>
+
+                <div v-if="selectedOfficer.bio" class="mt-4 p-4 rounded-xl bg-slate-500/5 border border-slate-500/10 text-sm">
+                  <div class="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1">Bio Singkat</div>
+                  <p class="italic leading-relaxed text-xs" :class="isDarkMode ? 'text-slate-300/80' : 'text-slate-500'">
+                    "{{ selectedOfficer.bio }}"
+                  </p>
+                </div>
+              </div>
+
+              <!-- RIGHT: Full Photo with name + label -->
+              <div class="w-full md:w-80 lg:w-96 relative min-h-[280px] md:min-h-full shrink-0">
+                <div class="absolute inset-3 rounded-2xl overflow-hidden shadow-xl">
+                  <img
+                    :src="selectedOfficer.img"
+                    :alt="selectedOfficer.name"
+                    class="w-full h-full object-cover"
+                  />
+                  <!-- Gradient overlay -->
+                  <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-5">
+                    <h3 class="text-white font-black text-xl leading-tight drop-shadow-lg">{{ selectedOfficer.name }}</h3>
+                    <p class="text-white/80 text-sm font-medium mt-0.5">{{ selectedOfficer.jabatan }}</p>
+                    <div class="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg"
+                         :class="selectedOfficer.status === 'Aktif'
+                           ? 'bg-blue-500 text-white'
+                           : 'bg-red-500 text-white'">
+                      <span class="w-1.5 h-1.5 rounded-full bg-white/80 inline-block"></span>
+                      {{ selectedOfficer.status }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- PREVIEW MODAL -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0 scale-95"
+        enter-to-class="opacity-100 scale-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100 scale-100"
+        leave-to-class="opacity-0 scale-95"
+      >
+        <div
+          v-if="selectedItem"
+          class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/92 backdrop-blur-md p-4"
+          @click.self="closeItemPreview"
+        >
+          <button @click="closeItemPreview"
+            class="fixed top-5 right-5 z-[10000] p-3 text-white bg-red-600 hover:bg-red-700 rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <div class="flex flex-col items-center gap-5 w-full max-w-5xl mx-auto">
+            <video
+              v-if="previewRenderType === 'video'"
+              ref="previewVideoEl"
+              :src="getDocMediaUrl(selectedItem.document.id)"
+              class="rounded-xl shadow-2xl border border-white/10 w-full max-h-[72vh]"
+              style="object-fit: contain;"
+              controls autoplay
+            ></video>
+            <img
+              v-else-if="selectedItem.document?.id"
+              :src="getDocMediaUrl(selectedItem.document.id)"
+              class="rounded-xl shadow-2xl border border-white/10 max-h-[76vh] max-w-full w-auto h-auto"
+              style="object-fit: contain;"
+              alt="Preview"
+            />
+            <div class="shrink-0 text-center bg-black/60 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/10">
+              <h3 class="text-xl md:text-2xl font-black tracking-tight text-white">{{ selectedItem.title }}</h3>
+              <p v-if="selectedItem.description" class="text-sm text-blue-200/70 mt-1">{{ selectedItem.description }}</p>
+              <p v-if="selectedItem.dateTime" class="text-xs text-slate-400 mt-1.5">📅 {{ formatDate(selectedItem.dateTime) }}</p>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>

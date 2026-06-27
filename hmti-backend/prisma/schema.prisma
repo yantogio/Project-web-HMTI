@@ -20,6 +20,8 @@ model Member {
   email     String?   // Tanda tanya (?) artinya boleh kosong (optional)
   phone     String?   // Kita simpan sebagai string agar bisa pakai format +62 dll
   bio       String?   // Untuk tulisan panjang
+  avatarUrl         String?   // URL foto profil publik (Google Drive thumbnail)
+  avatarDriveFileId String?   // Drive file ID untuk keperluan hapus file lama
   documents Document[] @relation("DocumentUploader")
 
   dues Dues[] @relation("MemberDues") // Hubungan satu anggota punya banyak tagihan
@@ -36,9 +38,13 @@ model Transaction {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
   
+  proofUrl          String?
+  proofDriveFileId  String?
+  paymentMethod     String?
+
   createdByNia String
   createdBy   Member   @relation("TransactionCreator", fields: [createdByNia], references: [nia])
-  
+
   // TAMBAHKAN INI: Hubungan ke Tagihan (Dues)
   // Agar kita tahu transaksi ini membayar tagihan bulan berapa
   duesId      Int?

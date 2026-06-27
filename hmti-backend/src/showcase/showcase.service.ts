@@ -65,9 +65,36 @@ export class ShowcaseService {
   }
 
   async remove(id: number) {
-    const item = await this.prisma.showcaseContent.findUnique({ where: { id } });
+    const item = await this.prisma.showcaseContent.findUnique({
+      where: { id },
+      include: { document: true },
+    });
     if (!item) throw new NotFoundException('Item tidak ditemukan');
-    // Hanya hapus baris showcase — Document tetap ada (Single Source of Truth)
-    return this.prisma.showcaseContent.delete({ where: { id } });
+
+    const documentId = item.documentId;
+
+    // 1. Hapus baris showcase terlebih dahulu (putus relasi FK)
+    await this.prisma.showcaseContent.delete({ where: { id } });
+
+    // 2. Hapus dokumen tertaut dari DB + Google Drive,
+    //    hanya jika tidak ada showcase lain yang masih memakai dokumen yang sama
+    if (documentId) {
+      const otherUsage = await this.prisma.showcaseContent.count({
+        where: { documentId },
+      });
+      if (otherUsage === 0) {
+        try {
+          await this.documentsService.remove(documentId);
+          this.logger.log(`Dokumen #${documentId} dan file Drive-nya berhasil dihapus bersama showcase #${id}`);
+        } catch (e) {
+          const message = e instanceof Error ? e.message : String(e);
+          this.logger.error(`Showcase #${id} terhapus, tapi gagal hapus dokumen #${documentId}: ${message}`);
+        }
+      } else {
+        this.logger.log(`Dokumen #${documentId} tidak dihapus — masih dipakai ${otherUsage} showcase lain`);
+      }
+    }
+
+    return item;
   }
 }

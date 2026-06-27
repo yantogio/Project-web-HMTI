@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
@@ -7,6 +7,14 @@ import { useThemeStore } from '../stores/theme'
 import AdminPageLayout from '../components/AdminPageLayout.vue'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
+
+const BASE = 'http://localhost:3000'
+// Pola sama seperti getDocPreviewUrl di ShowcaseHub — gunakan identifier (NIA), bukan URL tersimpan
+const getAvatarUrl = (nia, avatarUrl) => {
+  if (!avatarUrl || !nia) return null
+  const qs = avatarUrl.includes('?') ? avatarUrl.slice(avatarUrl.indexOf('?')) : ''
+  return `${BASE}/members/${nia}/avatar${qs}`
+}
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -262,6 +270,79 @@ const goBackToMenu = () => {
   router.push('/admin')
 }
 
+// --- STATE IMPORT EXCEL ---
+const isImportModalOpen = ref(false)
+const importFile = ref(null)
+const isImporting = ref(false)
+const importResult = ref(null)
+
+const openImportModal = () => {
+  importFile.value = null
+  importResult.value = null
+  isImportModalOpen.value = true
+}
+
+const closeImportModal = () => {
+  isImportModalOpen.value = false
+  importFile.value = null
+  importResult.value = null
+  isImporting.value = false
+}
+
+const handleImportFile = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  const ext = file.name.split('.').pop()?.toLowerCase()
+  if (ext !== 'xlsx') {
+    toastWarning('Hanya file .xlsx yang didukung. Download template terlebih dahulu.')
+    e.target.value = ''
+    return
+  }
+  importFile.value = file
+}
+
+const submitImport = async () => {
+  if (isImporting.value || !importFile.value) return
+  isImporting.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', importFile.value)
+    const res = await axios.post('http://localhost:3000/members/import', fd, {
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    importResult.value = res.data
+    if (res.data.imported > 0) {
+      await fetchMembers()
+    }
+  } catch (error) {
+    console.error('Gagal import:', error)
+    toastError('Gagal mengimport: ' + (error.response?.data?.message || error.message))
+  } finally {
+    isImporting.value = false
+  }
+}
+
+const downloadTemplate = async () => {
+  try {
+    const res = await axios.get('http://localhost:3000/members/import-template', {
+      headers: { Authorization: `Bearer ${authStore.token}` },
+      responseType: 'blob'
+    })
+    const url = URL.createObjectURL(new Blob([res.data]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'Template-Import-Anggota.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error(error)
+    toastError('Gagal mendownload template.')
+  }
+}
+
 // State untuk modal profil (detail lengkap anggota)
 const isProfileOpen = ref(false)
 const selectedMemberProfile = ref(null)
@@ -303,6 +384,16 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (scrollObserver) scrollObserver.disconnect()
+})
+
+watch(isDarkMode, async () => {
+  await nextTick()
+  document.querySelectorAll('.scroll-reveal, .stagger-child').forEach(el => {
+    const rect = el.getBoundingClientRect()
+    if (rect.top < window.innerHeight + 100 && rect.bottom >= 0) {
+      el.classList.add('is-visible')
+    }
+  })
 })
 </script>
 
@@ -356,21 +447,37 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Card 3: TOMBOL TAMBAH (HANYA MUNCUL KALAU BISA MANAGE DATA) -->
-        <div v-if="canManageData" @click="openModal"
-          class="stagger-child bg-gradient-to-br from-blue-600 to-indigo-600 p-6 rounded-2xl flex flex-col justify-between items-start cursor-pointer transform transition duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/40 group">
-          <div class="flex justify-between w-full">
+        <!-- Card 3: AKSI CEPAT (HANYA MUNCUL KALAU BISA MANAGE DATA) -->
+        <div v-if="canManageData" class="stagger-child flex flex-col gap-3">
+          <!-- Tombol Tambah Anggota -->
+          <div @click="openModal"
+            class="bg-gradient-to-br from-blue-600 to-indigo-600 p-5 rounded-2xl flex items-center justify-between cursor-pointer transform transition duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/40 group flex-1">
             <div>
-              <div class="text-blue-100 text-sm font-bold uppercase tracking-wider mb-2">Aksi Cepat</div>
-              <div class="text-2xl font-extrabold text-white leading-tight mb-2">Tambah Anggota</div>
-              <div class="text-blue-100 text-sm opacity-90">Daftarkan anggota baru.</div>
+              <div class="text-blue-100 text-xs font-bold uppercase tracking-wider mb-1">Aksi Cepat</div>
+              <div class="text-xl font-extrabold text-white leading-tight">Tambah Anggota</div>
             </div>
-            <div class="bg-white/20 p-3 rounded-full group-hover:bg-white group-hover:text-blue-600 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
+            <div class="bg-white/20 p-2.5 rounded-full group-hover:bg-white group-hover:text-blue-600 transition-colors flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
               </svg>
             </div>
+          </div>
+          <!-- Tombol Import Excel + Download Template -->
+          <div class="flex gap-2">
+            <button @click="openImportModal"
+              class="flex-1 flex items-center justify-center gap-2 bg-gradient-to-br from-emerald-600 to-teal-600 p-3 rounded-xl cursor-pointer transition duration-200 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/30 text-white font-bold text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+              </svg>
+              Import Excel
+            </button>
+            <button @click="downloadTemplate"
+              class="flex-1 flex items-center justify-center gap-2 bg-gradient-to-br from-amber-500 to-orange-500 p-3 rounded-xl cursor-pointer transition duration-200 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/30 text-white font-bold text-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Template
+            </button>
           </div>
         </div>
         <!-- OPSIONAL: PESAN UNTUK ANGGOTA BIASA -->
@@ -452,7 +559,7 @@ onUnmounted(() => {
                       title="Lihat profil"
                     >
                       <img
-                        :src="member.official_photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=0D8ABC&color=fff&size=80`"
+                        :src="getAvatarUrl(member.nia, member.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=0D8ABC&color=fff&size=80`"
                         alt="Avatar"
                         class="w-full h-full object-cover"
                       />
@@ -532,113 +639,6 @@ onUnmounted(() => {
           </table>
         </div> <!-- Tutup tag tabel -->
         
-        <!-- Detail Profile Card Pop-up Modal -->
-        <Transition name="fade">
-          <div v-if="isProfileOpen && selectedMemberProfile" class="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <!-- Backdrop -->
-            <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="closeProfilePopup"></div>
-
-            <!-- Modal Content -->
-            <Transition name="modal-zoom">
-              <div 
-                v-if="isProfileOpen" 
-                :class="['relative w-full max-w-4xl rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 transform flex flex-col md:flex-row', isDarkMode ? 'bg-slate-900 text-white border-white/10' : 'bg-white text-slate-900 border-slate-200']"
-              >
-                <!-- Close Button (Top Right of entire modal) -->
-                <button 
-                  @click="closeProfilePopup" 
-                  class="absolute top-4 right-4 z-20 text-gray-400 hover:text-gray-600 dark:hover:text-white bg-slate-500/15 hover:bg-slate-500/30 p-2 rounded-full transition-all duration-150"
-                >
-                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                  </svg>
-                </button>
-
-                <!-- LEFT SIDE: Profile Photo & Key Info -->
-                <div class="w-full md:w-96 flex flex-col items-center justify-center p-8 border-b md:border-b-0 md:border-r" :class="isDarkMode ? 'bg-slate-950/40 border-white/5' : 'bg-slate-50 border-slate-200/60'">
-                  <!-- Avatar -->
-                  <div class="w-64 h-64 rounded-2xl p-1 shadow-xl bg-white" :class="isDarkMode ? 'bg-slate-800 border-2 border-slate-700' : 'bg-white border-2 border-slate-200'">
-                    <img 
-                      :src="selectedMemberProfile.official_photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedMemberProfile.name)}&background=0D8ABC&color=fff&size=256`" 
-                      alt="Profile Avatar" 
-                      class="w-full h-full rounded-xl object-cover"
-                    />
-                  </div>
-
-                  <!-- Name & Title -->
-                  <div class="mt-6 text-center">
-                    <h3 class="text-xl font-black tracking-tight" :class="isDarkMode ? 'text-white' : 'text-slate-900'">
-                      {{ selectedMemberProfile.name }}
-                    </h3>
-                    <p class="text-xs font-bold uppercase tracking-wider text-blue-500 mt-1.5">
-                      {{ selectedMemberProfile.jabatan }}
-                    </p>
-                    <div class="mt-3 inline-block text-xs font-bold px-3 py-1 rounded-full"
-                         :class="selectedMemberProfile.status === 'Aktif' ? 'bg-emerald-500/25 text-emerald-400' : 'bg-slate-500/25 text-slate-500'">
-                      {{ selectedMemberProfile.status }}
-                    </div>
-                  </div>
-                </div>
-
-                <!-- RIGHT SIDE: Detailed Metadata -->
-                <div class="flex-1 p-8 flex flex-col justify-between">
-                  <div>
-                    <div class="mb-6">
-                      <span class="text-xs font-black uppercase tracking-widest text-blue-500 dark:text-blue-400">Detail Anggota</span>
-                    </div>
-
-                    <!-- Details Grid -->
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                      <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
-                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">NIA</div>
-                        <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.nia }}</div>
-                      </div>
-                      <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
-                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">NPM</div>
-                        <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.npm || '-' }}</div>
-                      </div>
-                      <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
-                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Hak Akses (Role)</div>
-                        <div class="font-semibold mt-0.5 capitalize" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.role }}</div>
-                      </div>
-                      <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
-                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Angkatan</div>
-                        <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.angkatan }}</div>
-                      </div>
-                      <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10 col-span-2">
-                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Tanggal Bergabung</div>
-                        <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">
-                          {{ new Date(selectedMemberProfile.joinedAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) }}
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Contact Info -->
-                    <div class="mt-4 p-4 rounded-xl bg-slate-500/5 border border-slate-500/10 space-y-2 text-sm">
-                      <div class="flex items-center gap-3">
-                        <span class="opacity-60 text-base">📧</span>
-                        <span class="font-medium truncate" :class="isDarkMode ? 'text-white' : 'text-slate-850'">{{ selectedMemberProfile.email || 'Email belum diatur' }}</span>
-                      </div>
-                      <div class="flex items-center gap-3">
-                        <span class="opacity-60 text-base">📞</span>
-                        <span class="font-medium" :class="isDarkMode ? 'text-white' : 'text-slate-850'">{{ selectedMemberProfile.phone || 'Nomor HP belum diatur' }}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Bio -->
-                  <div class="mt-6 p-4 rounded-xl bg-slate-500/5 border border-slate-500/10 text-sm">
-                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1">Bio Singkat</div>
-                    <p class="italic leading-relaxed text-xs" :class="isDarkMode ? 'text-slate-300/80' : 'text-slate-500'">
-                      "{{ selectedMemberProfile.bio || 'Anggota ini belum menulis bio singkat.' }}"
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </Transition>
-          </div>
-        </Transition>
-
         <!-- Pagination -->
         <div :class="['px-6 py-4 flex flex-col md:flex-row justify-between items-center text-sm border-t', themeClasses.pagination]">
           <div class="mb-2 md:mb-0">
@@ -661,6 +661,122 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- MODAL IMPORT EXCEL -->
+    <Transition name="modal-overlay-fade">
+      <div v-if="isImportModalOpen" class="fixed inset-0 z-50" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+          <div :class="['absolute inset-0 backdrop-blur-sm', isDarkMode ? 'bg-slate-950/80' : 'bg-slate-900/50']" @click="closeImportModal"></div>
+
+          <div :class="['relative w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl border', themeClasses.modalContent]">
+
+            <!-- Header -->
+            <div class="relative bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-6 py-5 overflow-hidden">
+              <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+              <div class="relative flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="bg-white/20 p-2.5 rounded-xl backdrop-blur-sm">
+                    <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 class="text-lg font-bold text-white">Import Anggota dari Excel</h3>
+                    <p class="text-xs text-emerald-100/80 mt-0.5">Upload file .xlsx sesuai template yang disediakan.</p>
+                  </div>
+                </div>
+                <button type="button" @click="closeImportModal"
+                  class="bg-white/10 hover:bg-white/25 rounded-xl p-2 text-emerald-100 hover:text-white transition-all">
+                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Body -->
+            <div :class="['px-6 py-6', themeClasses.modalForm]">
+
+              <!-- LANGKAH 1: Pilih file (saat belum ada hasil) -->
+              <div v-if="importResult === null">
+                <p :class="['text-sm mb-5', themeClasses.textMuted]">
+                  Pastikan file sudah sesuai dengan template. Belum punya template?
+                  <button @click="downloadTemplate" class="text-emerald-500 hover:underline font-semibold">Download di sini.</button>
+                </p>
+
+                <!-- Area upload file -->
+                <label :class="['flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-2xl cursor-pointer transition-all',
+                  importFile ? (isDarkMode ? 'border-emerald-500 bg-emerald-500/10' : 'border-emerald-500 bg-emerald-50') : (isDarkMode ? 'border-white/20 hover:border-white/40 bg-white/5' : 'border-slate-300 hover:border-blue-400 bg-slate-50 hover:bg-blue-50/30')]">
+                  <div class="flex flex-col items-center gap-2 pointer-events-none">
+                    <svg v-if="!importFile" class="w-10 h-10 opacity-40" :class="themeClasses.textMuted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <svg v-else class="w-10 h-10 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span v-if="!importFile" :class="['text-sm font-semibold', themeClasses.textMuted]">Klik untuk pilih file .xlsx</span>
+                    <span v-else class="text-sm font-bold text-emerald-500 max-w-xs truncate px-2">{{ importFile.name }}</span>
+                    <span v-if="importFile" :class="['text-xs', themeClasses.textMuted]">Klik untuk ganti file</span>
+                  </div>
+                  <input type="file" accept=".xlsx" class="hidden" @change="handleImportFile">
+                </label>
+
+                <div :class="['mt-5 flex justify-end gap-3 pt-4 border-t', isDarkMode ? 'border-white/10' : 'border-slate-200']">
+                  <button @click="closeImportModal" :class="['px-5 py-2.5 rounded-xl font-semibold text-sm border transition', themeClasses.modalCancel]">
+                    Batal
+                  </button>
+                  <button @click="submitImport" :disabled="!importFile || isImporting"
+                    class="px-5 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                    <svg v-if="isImporting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    {{ isImporting ? 'Memproses...' : 'Proses Import' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- LANGKAH 2: Hasil import -->
+              <div v-else>
+                <div class="space-y-3 mb-5">
+                  <!-- Berhasil -->
+                  <div class="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                    <svg class="h-6 w-6 text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="font-bold text-emerald-400">{{ importResult.imported }} anggota berhasil ditambahkan</span>
+                  </div>
+                  <!-- Dilewati/Error -->
+                  <div v-if="importResult.skipped > 0" class="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                    <svg class="h-6 w-6 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                    </svg>
+                    <span class="font-bold text-amber-400">{{ importResult.skipped }} baris dilewati</span>
+                  </div>
+                </div>
+
+                <!-- Daftar error per baris -->
+                <div v-if="importResult.errors && importResult.errors.length > 0" :class="['rounded-xl border p-3 max-h-48 overflow-y-auto space-y-1.5', isDarkMode ? 'border-white/10 bg-black/20' : 'border-slate-200 bg-slate-50']">
+                  <p :class="['text-xs font-bold uppercase tracking-wider mb-2', themeClasses.textMuted]">Detail Error</p>
+                  <div v-for="err in importResult.errors" :key="err.row" class="flex items-start gap-2">
+                    <span class="text-rose-400 font-bold text-xs flex-shrink-0 mt-0.5">Baris {{ err.row }}:</span>
+                    <span :class="['text-xs', themeClasses.textMuted]">{{ err.reason }}</span>
+                  </div>
+                </div>
+
+                <div :class="['mt-5 flex justify-end pt-4 border-t', isDarkMode ? 'border-white/10' : 'border-slate-200']">
+                  <button @click="closeImportModal"
+                    class="px-6 py-2.5 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-500 text-white shadow transition">
+                    Tutup
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- MODAL POP-UP -->
     <Transition name="modal-overlay-fade">
@@ -826,6 +942,100 @@ onUnmounted(() => {
     </Transition>
 
   </AdminPageLayout>
+
+  <!-- PROFILE POPUP — Teleport agar tidak terpengaruh transform parent -->
+  <Teleport to="body">
+    <Transition name="fade">
+      <div v-if="isProfileOpen && selectedMemberProfile" class="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeProfilePopup"></div>
+
+        <Transition name="modal-zoom">
+          <div
+            v-if="isProfileOpen"
+            :class="['relative w-full max-w-4xl rounded-3xl shadow-2xl border overflow-hidden flex flex-col md:flex-row', isDarkMode ? 'bg-slate-900 text-white border-white/10' : 'bg-white text-slate-900 border-slate-200']"
+            style="max-height: 90vh"
+          >
+            <button
+              @click="closeProfilePopup"
+              class="absolute top-4 right-4 z-20 text-gray-400 hover:text-gray-600 bg-slate-500/15 hover:bg-slate-500/30 p-2 rounded-full transition-all duration-150"
+            >
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+
+            <!-- LEFT: Photo & Key Info -->
+            <div class="w-full md:w-80 flex flex-col items-center justify-center p-8 border-b md:border-b-0 md:border-r" :class="isDarkMode ? 'bg-slate-950/40 border-white/5' : 'bg-slate-50 border-slate-200/60'">
+              <div class="w-56 h-56 rounded-2xl shadow-xl overflow-hidden" :class="isDarkMode ? 'border-2 border-slate-700' : 'border-2 border-slate-200'">
+                <img
+                  :src="getAvatarUrl(selectedMemberProfile.nia, selectedMemberProfile.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedMemberProfile.name)}&background=0D8ABC&color=fff&size=256`"
+                  alt="Profile Avatar"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+              <div class="mt-6 text-center">
+                <h3 class="text-xl font-black tracking-tight" :class="isDarkMode ? 'text-white' : 'text-slate-900'">{{ selectedMemberProfile.name }}</h3>
+                <p class="text-xs font-bold uppercase tracking-wider text-blue-500 mt-1.5">{{ selectedMemberProfile.jabatan }}</p>
+                <div class="mt-3 inline-block text-xs font-bold px-3 py-1 rounded-full"
+                     :class="selectedMemberProfile.status === 'Aktif' ? 'bg-emerald-500/25 text-emerald-400' : 'bg-slate-500/25 text-slate-400'">
+                  {{ selectedMemberProfile.status }}
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT: Detailed Metadata -->
+            <div class="flex-1 p-8 flex flex-col justify-between overflow-y-auto">
+              <div>
+                <div class="mb-6">
+                  <span class="text-xs font-black uppercase tracking-widest text-blue-500">Detail Anggota</span>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                  <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">NIA</div>
+                    <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.nia }}</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">NPM</div>
+                    <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.npm || '-' }}</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Hak Akses (Role)</div>
+                    <div class="font-semibold mt-0.5 capitalize" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.role }}</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Angkatan</div>
+                    <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.angkatan }}</div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-slate-500/5 border border-slate-500/10 col-span-2">
+                    <div class="text-[10px] font-bold uppercase tracking-wider opacity-50">Tanggal Bergabung</div>
+                    <div class="font-semibold mt-0.5" :class="isDarkMode ? 'text-white' : 'text-slate-800'">
+                      {{ new Date(selectedMemberProfile.joinedAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) }}
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-4 p-4 rounded-xl bg-slate-500/5 border border-slate-500/10 space-y-2 text-sm">
+                  <div class="flex items-center gap-3">
+                    <span class="opacity-60">📧</span>
+                    <span class="font-medium truncate" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.email || 'Email belum diatur' }}</span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="opacity-60">📞</span>
+                    <span class="font-medium" :class="isDarkMode ? 'text-white' : 'text-slate-800'">{{ selectedMemberProfile.phone || 'Nomor HP belum diatur' }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-6 p-4 rounded-xl bg-slate-500/5 border border-slate-500/10 text-sm">
+                <div class="text-[10px] font-bold uppercase tracking-wider opacity-50 mb-1">Bio Singkat</div>
+                <p class="italic leading-relaxed text-xs" :class="isDarkMode ? 'text-slate-300/80' : 'text-slate-500'">
+                  "{{ selectedMemberProfile.bio || 'Anggota ini belum menulis bio singkat.' }}"
+                </p>
+              </div>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

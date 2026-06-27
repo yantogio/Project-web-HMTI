@@ -27,6 +27,33 @@ const isMediaModalOpen = ref(false)
 const galleryDocs = ref([])
 const isLoadingGallery = ref(false)
 
+// --- PREVIEW MODAL STATE ---
+const selectedItem = ref(null)
+const previewVideoEl = ref(null)
+
+const previewRenderType = computed(() => {
+  const doc = selectedItem.value?.document
+  if (!doc) return 'img'
+  if (doc.category?.startsWith('video/') || isVideo(doc.type || doc.category)) return 'video'
+  return 'img'
+})
+
+const getDocPreviewUrl = (docId) => docId ? `${BASE}/documents/preview/${docId}` : null
+
+const openItemPreview = (item) => {
+  if (!item.document?.id) return
+  selectedItem.value = item
+}
+
+const closeItemPreview = () => {
+  if (previewVideoEl.value) {
+    previewVideoEl.value.pause()
+    previewVideoEl.value.src = ''
+    previewVideoEl.value.load()
+  }
+  selectedItem.value = null
+}
+
 const formData = ref({
   title: '',
   description: '',
@@ -103,13 +130,15 @@ const fetchItems = async () => {
 const fetchGalleryDocs = async () => {
   isLoadingGallery.value = true
   try {
-    const res = await axios.get(`${BASE}/documents`, { headers: authHeader.value })
-    // Ambil hanya yang berjenis MEDIA atau BRANDING (punya thumbnail)
-    galleryDocs.value = res.data.filter(d =>
+    const res = await axios.get(`${BASE}/documents?limit=100`, { headers: authHeader.value })
+    // findAll mengembalikan { data: [...], pagination: {...} }
+    const docs = Array.isArray(res.data) ? res.data : (res.data.data ?? [])
+    galleryDocs.value = docs.filter(d =>
       ['FOTO', 'MEDIA', 'BRANDING', 'VIDEO', 'IMAGE'].includes((d.type || d.category || '').toUpperCase())
     )
   } catch (e) {
     toastError('Gagal memuat galeri dokumen.')
+    console.error(e)
   } finally {
     isLoadingGallery.value = false
   }
@@ -388,9 +417,23 @@ onUnmounted(() => { if (scrollObserver) scrollObserver.disconnect() })
               :class="['rounded-xl overflow-hidden border group transition-all duration-300 hover:-translate-y-1 hover:shadow-xl animate-fade-in', themeClasses.cardGlass]">
 
               <!-- Thumbnail -->
-              <div class="h-36 bg-slate-800 relative overflow-hidden">
-                <img v-if="item.document?.id"
-                  :src="getDocUrl(item.document.id)"
+              <div class="h-36 bg-slate-800 relative overflow-hidden cursor-pointer" @click="openItemPreview(item)">
+                <template v-if="item.document?.id && (item.document.category?.startsWith('video/') || isVideo(item.document.type))">
+                  <video
+                    :src="getDocPreviewUrl(item.document.id)"
+                    class="w-full h-full object-cover"
+                    preload="metadata" muted playsinline
+                    @loadedmetadata="(e) => { if (e.target.duration > 0.1) e.target.currentTime = 0.5 }"
+                  ></video>
+                  <!-- overlay play icon, hanya muncul saat hover -->
+                  <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-200">
+                    <div class="w-10 h-10 rounded-full bg-white/0 group-hover:bg-white/85 flex items-center justify-center shadow-lg transition-all duration-200 scale-75 group-hover:scale-100">
+                      <svg class="w-5 h-5 text-slate-800 ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    </div>
+                  </div>
+                </template>
+                <img v-else-if="item.document?.id"
+                  :src="getDocPreviewUrl(item.document.id)"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   loading="lazy">
                 <div v-else class="w-full h-full flex items-center justify-center text-4xl opacity-20">
@@ -444,6 +487,53 @@ onUnmounted(() => { if (scrollObserver) scrollObserver.disconnect() })
       </div>
     </div>
 
+    <!-- ITEM PREVIEW MODAL -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0 scale-95"
+        enter-to-class="opacity-100 scale-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100 scale-100"
+        leave-to-class="opacity-0 scale-95"
+      >
+        <div
+          v-if="selectedItem"
+          class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/92 backdrop-blur-md p-4"
+          @click.self="closeItemPreview"
+        >
+          <button @click="closeItemPreview"
+            class="fixed top-5 right-5 z-[10000] p-3 text-white bg-red-600 hover:bg-red-700 rounded-full shadow-2xl transition-all hover:scale-110 active:scale-95">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <div class="flex flex-col items-center gap-5 w-full max-w-5xl mx-auto">
+            <video
+              v-if="previewRenderType === 'video'"
+              ref="previewVideoEl"
+              :src="getDocPreviewUrl(selectedItem.document.id)"
+              class="rounded-xl shadow-2xl border border-white/10 w-full max-h-[72vh]"
+              style="object-fit: contain;"
+              controls autoplay
+            ></video>
+            <img
+              v-else-if="selectedItem.document?.id"
+              :src="getDocPreviewUrl(selectedItem.document.id)"
+              class="rounded-xl shadow-2xl border border-white/10 max-h-[76vh] max-w-full w-auto h-auto"
+              style="object-fit: contain;"
+              alt="Preview"
+            />
+            <div class="shrink-0 text-center bg-black/60 backdrop-blur-sm rounded-2xl px-8 py-4 border border-white/10">
+              <h3 class="text-xl md:text-2xl font-black tracking-tight text-white">{{ sanitizeText(selectedItem.title) }}</h3>
+              <p v-if="selectedItem.description" class="text-sm text-blue-200/70 mt-1">{{ sanitizeText(selectedItem.description) }}</p>
+              <p v-if="selectedItem.dateTime" class="text-xs text-slate-400 mt-1.5">📅 {{ formatDate(selectedItem.dateTime) }}</p>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- MEDIA GALLERY MODAL -->
     <Transition name="modal-fade">
       <div v-if="isMediaModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -469,7 +559,7 @@ onUnmounted(() => { if (scrollObserver) scrollObserver.disconnect() })
             <div v-for="doc in galleryDocs" :key="doc.id"
               @click="selectFromGallery(doc)"
               class="aspect-video bg-slate-800 rounded-xl cursor-pointer hover:ring-2 hover:ring-purple-500 transition-all overflow-hidden group relative">
-              <img :src="getDocUrl(doc.id)" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" loading="lazy">
+              <img :src="getDocPreviewUrl(doc.id)" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" loading="lazy">
               <div class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1 opacity-0 group-hover:opacity-100 transition-all">
                 <p class="text-white text-[10px] font-medium truncate">{{ doc.title }}</p>
               </div>

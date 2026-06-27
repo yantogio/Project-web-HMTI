@@ -14,15 +14,29 @@ const themeStore = useThemeStore()
 const isDarkMode = computed(() => themeStore.isDarkMode)
 const activeTab = ref('info')
 
+const BASE = 'http://localhost:3000'
+
 // Form Data Pribadi (KOSONG DI AWAL, NANTI DIISI DARI DATABASE)
 const profileData = ref({
+  nia: '',
   name: '',
   role: '',
   email: '',
   phone: '',
-  bio: ''
-  // Location dihapus karena tidak ada di database
+  bio: '',
+  avatarUrl: ''
 })
+
+// Konstruksi URL stream avatar (pola sama seperti /documents/preview/:id di ShowcaseHub)
+const getAvatarUrl = (nia, avatarUrl) => {
+  if (!avatarUrl || !nia) return null
+  const qs = avatarUrl.includes('?') ? avatarUrl.slice(avatarUrl.indexOf('?')) : ''
+  return `${BASE}/members/${nia}/avatar${qs}`
+}
+
+const avatarInput = ref(null)
+const isUploadingAvatar = ref(false)
+const avatarError = ref('')
 
 const passwordData = ref({
   currentPassword: '',
@@ -83,13 +97,14 @@ const fetchMyProfile = async () => {
     })
     
     const data = response.data
-    // Isi data form dengan hasil dari database
     profileData.value = {
+      nia: data.nia || '',
       name: data.name,
       role: data.role,
       email: data.email || '',
       phone: data.phone || '',
-      bio: data.bio || ''
+      bio: data.bio || '',
+      avatarUrl: data.avatarUrl || ''
     }
   } catch (error) {
     console.error('Gagal ambil profil:', error)
@@ -157,6 +172,54 @@ const changePassword = async () => {
     console.error(error)
     const msg = error.response?.data?.message || 'Gagal mengubah password. Cek password lama Anda.'
     alert(msg)
+  }
+}
+
+const getInitials = (name) => {
+  if (!name) return '?'
+  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+}
+
+const triggerAvatarInput = () => {
+  avatarError.value = ''
+  avatarInput.value?.click()
+}
+
+const handleAvatarUpload = async (event) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  const allowed = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowed.includes(file.type)) {
+    avatarError.value = 'Hanya file JPEG, PNG, atau WebP yang diizinkan.'
+    event.target.value = ''
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    avatarError.value = 'Ukuran file maksimal 2MB.'
+    event.target.value = ''
+    return
+  }
+
+  isUploadingAvatar.value = true
+  avatarError.value = ''
+  const formData = new FormData()
+  formData.append('avatar', file)
+
+  try {
+    const response = await axios.patch('http://localhost:3000/members/me/avatar', formData, {
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    profileData.value.avatarUrl = response.data.avatarUrl
+  } catch (error) {
+    const msg = error.response?.data?.message || 'Gagal mengupload foto. Coba lagi.'
+    avatarError.value = msg
+  } finally {
+    isUploadingAvatar.value = false
+    event.target.value = ''
   }
 }
 
@@ -238,10 +301,48 @@ onUnmounted(() => {
             
             <div class="relative pt-12">
               <!-- Avatar -->
-              <div class="w-32 h-32 mx-auto rounded-full p-1 bg-white/10 backdrop-blur-sm mb-4">
-                <img :src="`https://ui-avatars.com/api/?name=${profileData.name}&background=0D8ABC&color=fff&size=256`" 
-                     alt="Profile" class="w-full h-full rounded-full object-cover border-4 border-slate-800">
+              <div class="relative w-32 h-32 mx-auto mb-4 group">
+                <input
+                  ref="avatarInput"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  class="hidden"
+                  @change="handleAvatarUpload"
+                />
+                <div class="w-32 h-32 rounded-full p-1 bg-white/10 backdrop-blur-sm">
+                  <img
+                    v-if="profileData.avatarUrl"
+                    :src="getAvatarUrl(profileData.nia, profileData.avatarUrl)"
+                    alt="Profile"
+                    class="w-full h-full rounded-full object-cover border-4 border-slate-800"
+                  />
+                  <div
+                    v-else
+                    class="w-full h-full rounded-full border-4 border-slate-800 flex items-center justify-center bg-gradient-to-br from-indigo-500 to-blue-600 text-white text-3xl font-bold select-none"
+                  >
+                    {{ getInitials(profileData.name) }}
+                  </div>
+                </div>
+                <!-- Overlay tombol ganti foto -->
+                <button
+                  type="button"
+                  @click="triggerAvatarInput"
+                  :disabled="isUploadingAvatar"
+                  class="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <svg v-if="!isUploadingAvatar" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                  <span class="text-white text-xs font-medium">{{ isUploadingAvatar ? 'Mengupload...' : 'Ganti Foto' }}</span>
+                </button>
               </div>
+              <!-- Error pesan avatar -->
+              <p v-if="avatarError" class="text-red-400 text-xs mb-2 text-center">{{ avatarError }}</p>
               
               <!-- Ubah warna teks ke putih di mode gelap -->
               <h2 :class="['text-2xl font-bold', isDarkMode ? 'text-white' : themeClasses.text]">{{ profileData.name || 'Loading...' }}</h2>

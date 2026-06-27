@@ -4,11 +4,15 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import AdminPageLayout from '../components/AdminPageLayout.vue'
-import axios from 'axios' // Tambah import axios
+import axios from 'axios'
+import { useToast } from '../composables/useToast'
+import { useConfirm } from '../composables/useConfirm'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
+const { confirm: confirmDialog } = useConfirm()
 
 // --- TAMBAHKAN FUNGSI INI ---
 const goBackToMenu = () => {
@@ -105,7 +109,7 @@ const fetchConfig = async () => {
 const saveConfig = async () => {
   const { duesAmount, lateFee, dueDay, finalDay } = configForm.value
   if (dueDay < 1 || dueDay > 31 || finalDay < 1 || finalDay > 31) {
-    alert('Tanggal tenggat dan tanggal akhir harus antara 1–31.')
+    toastWarning('Tanggal tenggat dan tanggal akhir harus antara 1–31.')
     return
   }
   isSavingConfig.value = true
@@ -118,11 +122,11 @@ const saveConfig = async () => {
     }, {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
-    alert('Konfigurasi iuran berhasil disimpan!')
+    toastSuccess('Konfigurasi iuran berhasil disimpan!')
     fetchConfig()
   } catch (e) {
     console.error(e)
-    alert('Gagal menyimpan konfigurasi: ' + (e.response?.data?.message || e.message))
+    toastError('Gagal menyimpan konfigurasi: ' + (e.response?.data?.message || e.message))
   } finally {
     isSavingConfig.value = false
   }
@@ -173,7 +177,7 @@ const generateDues = async () => {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
 
-    alert('Tagihan berhasil dibuat untuk semua anggota aktif!')
+    toastSuccess('Tagihan berhasil dibuat untuk semua anggota aktif!')
 
     // Refresh daftar status dan ringkasan tagihan
     fetchDuesList()
@@ -184,7 +188,7 @@ const generateDues = async () => {
 
   } catch (error) {
     console.error(error)
-    alert('Gagal membuat tagihan: ' + error.response?.data?.message || 'Server error')
+    toastError('Gagal membuat tagihan: ' + (error.response?.data?.message || 'Server error'))
   }
 }
 
@@ -276,13 +280,21 @@ const isModalOpen = ref(false)
 const formType = ref('in')
 const incomeSource = ref('anggota')
 const formData = ref({ amount: '', category: '', desc: '', targetNia: '' })
+const paymentMethod = ref('cash')
+const proofFile = ref(null)
+const isSaving = ref(false)
+
+// --- LAPORAN ---
+const reportFrom = ref('')
+const reportTo = ref('')
+const isDownloading = ref(false)
 
 // Hanya Bendahara yang boleh Menulis (Tombol FAB)
 const isBendahara = computed(() => authStore.user?.role === 'bendahara')
 
 const openModal = (type) => {
   if (!isBendahara.value) {
-    alert('Maaf, hanya Bendahara yang dapat menambah transaksi.')
+    toastWarning('Maaf, hanya Bendahara yang dapat menambah transaksi.')
     return
   }
   formType.value = type
@@ -293,6 +305,8 @@ const closeModal = () => {
   isModalOpen.value = false
   formData.value = { amount: '', category: '', desc: '', targetNia: '' }
   paymentWarning.value = { show: false, message: '' }
+  paymentMethod.value = 'cash'
+  proofFile.value = null
 }
 
 // --- 5. API CALLS (INI YANG BARU) ---
@@ -309,37 +323,92 @@ const fetchTransactions = async () => {
     transactions.value = response.data
   } catch (error) {
     console.error('Gagal ambil data keuangan:', error)
-    alert('Gagal memuat data keuangan.')
+    toastError('Gagal memuat data keuangan.')
   }
 }
 
 // Simpan Transaksi Baru
 const saveTransaction = async () => {
+  if (isSaving.value) return
+
+  // Validasi bukti transaksi
+  if (formType.value === 'in' && incomeSource.value === 'anggota' && paymentMethod.value === 'non-cash' && !proofFile.value) {
+    toastWarning('Bukti transaksi wajib untuk pembayaran non-cash')
+    return
+  }
+  if (formType.value === 'in' && incomeSource.value === 'eksternal' && !proofFile.value) {
+    toastWarning('Bukti transaksi wajib untuk dana eksternal')
+    return
+  }
+  if (formType.value === 'out' && !proofFile.value) {
+    toastWarning('Bukti transaksi wajib untuk pengeluaran')
+    return
+  }
+
+  isSaving.value = true
   try {
-    // Siapkan payload sesuai format backend; backend akan menentukan periode dari tanggal transaksi
-    const payload = {
-      type: formType.value,
-      amount: formData.value.amount,
-      category: formData.value.category,
-      description: formData.value.desc,
-      subCategory: formType.value === 'in' ? (incomeSource.value === 'anggota' ? 'Kas Anggota' : 'Dana Eksternal') : null,
-      targetNia: formData.value.targetNia
+    let description = formData.value.desc
+    if (formType.value === 'in' && incomeSource.value === 'anggota') {
+      const suffix = paymentMethod.value === 'cash' ? '[Cash]' : '[Non-Cash]'
+      description = description ? `${description} ${suffix}` : suffix
     }
 
-    await axios.post('http://localhost:3000/transactions', payload, {
+    const fd = new FormData()
+    fd.append('type', formType.value)
+    fd.append('amount', formData.value.amount)
+    fd.append('category', formType.value === 'in' && incomeSource.value === 'anggota' ? 'Kas Anggota' : formData.value.category)
+    fd.append('description', description)
+    fd.append('subCategory', formType.value === 'in' ? (incomeSource.value === 'anggota' ? 'Kas Anggota' : 'Dana Eksternal') : '')
+    if (formData.value.targetNia) fd.append('targetNia', formData.value.targetNia)
+    if (formType.value === 'in' && incomeSource.value === 'anggota') {
+      fd.append('paymentMethod', paymentMethod.value)
+    }
+    if (proofFile.value) fd.append('proof', proofFile.value)
+
+    await axios.post('http://localhost:3000/transactions', fd, {
       headers: {
-        Authorization: `Bearer ${authStore.token}`
+        Authorization: `Bearer ${authStore.token}`,
+        'Content-Type': 'multipart/form-data'
       }
     })
 
-    alert('Transaksi berhasil disimpan!')
+    toastSuccess('Transaksi berhasil disimpan!')
     closeModal()
-    fetchTransactions() // Refresh timeline transaksi
-    fetchDuesList()     // Refresh status pembayaran anggota agar langsung terupdate
+    fetchTransactions()
+    fetchDuesList()
     fetchDuesSummary()
   } catch (error) {
     console.error(error)
-    alert('Gagal menyimpan transaksi: ' + (error.response?.data?.message || error.message))
+    toastError('Gagal menyimpan transaksi: ' + (error.response?.data?.message || error.message))
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const downloadReport = async (format) => {
+  if (!reportFrom.value || !reportTo.value) {
+    toastWarning('Pilih rentang tanggal terlebih dahulu')
+    return
+  }
+  isDownloading.value = true
+  try {
+    const res = await axios.get('http://localhost:3000/transactions/report', {
+      params: { from: reportFrom.value, to: reportTo.value, format },
+      headers: { Authorization: `Bearer ${authStore.token}` },
+      responseType: 'blob'
+    })
+    const ext = format === 'word' ? 'docx' : 'xlsx'
+    const url = URL.createObjectURL(new Blob([res.data]))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Laporan-Keuangan-${reportFrom.value}-${reportTo.value}.${ext}`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error(error)
+    toastError('Gagal download laporan: ' + (error.response?.data?.message || error.message))
+  } finally {
+    isDownloading.value = false
   }
 }
 
@@ -421,9 +490,28 @@ const displayDuesAmount = (item) => {
   return formatIDR(item.remaining)
 }
 
+const transactionsWithProof = computed(() =>
+  transactions.value.filter(t => t.proofUrl)
+)
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
+
+const handleProofFile = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  if (file.size > MAX_FILE_SIZE) {
+    toastError('Ukuran file maksimal 5 MB. Silakan kompres file terlebih dahulu.')
+    e.target.value = ''
+    proofFile.value = null
+    return
+  }
+  proofFile.value = file
+}
+
 // --- 6. LOGOUT (Sama) ---
-const handleLogout = () => {
-  if (confirm('Keluar dari sistem keuangan?')) {
+const handleLogout = async () => {
+  const ok = await confirmDialog('Keluar dari sistem keuangan?')
+  if (ok) {
     authStore.logout()
     router.push('/')
   }
@@ -687,6 +775,45 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <!-- CARD DOWNLOAD LAPORAN (hanya bendahara) -->
+      <div v-if="isBendahara" class="scroll-reveal">
+        <div :class="['p-6 rounded-2xl', themeClasses.cardGlass]">
+          <h2 :class="['text-xl font-bold mb-1 flex items-center gap-2', themeClasses.text]">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Download Laporan Keuangan
+          </h2>
+          <p :class="['text-sm mb-5', themeClasses.textMuted]">Unduh laporan transaksi dalam rentang periode tertentu.</p>
+          <div class="flex flex-wrap gap-4 items-end">
+            <div>
+              <label :class="['block text-xs font-bold uppercase mb-1', themeClasses.textMuted]">Dari Tanggal</label>
+              <input type="date" v-model="reportFrom" :class="['px-4 py-2.5 rounded-xl outline-none', themeClasses.inputBg]">
+            </div>
+            <div>
+              <label :class="['block text-xs font-bold uppercase mb-1', themeClasses.textMuted]">Sampai Tanggal</label>
+              <input type="date" v-model="reportTo" :class="['px-4 py-2.5 rounded-xl outline-none', themeClasses.inputBg]">
+            </div>
+            <div class="flex gap-3">
+              <button @click="downloadReport('excel')" :disabled="isDownloading"
+                class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                {{ isDownloading ? 'Loading...' : 'Excel' }}
+              </button>
+              <button @click="downloadReport('word')" :disabled="isDownloading"
+                class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-500 text-white shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                {{ isDownloading ? 'Loading...' : 'Word' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 2. MAIN SPLIT CONTENT (TIMELINE + SUMMARY) -->
       <div class="scroll-reveal grid grid-cols-1 lg:grid-cols-3 gap-8">
 
@@ -764,7 +891,7 @@ onUnmounted(() => {
                       </div>
 
                       <!-- Description -->
-                      <h4 :class="['font-extrabold text-lg leading-snug mb-2', themeClasses.text]">{{ t.desc || '-' }}</h4>
+                      <h4 :class="['font-extrabold text-lg leading-snug mb-2', themeClasses.text]">{{ t.description || '-' }}</h4>
 
                       <!-- Tags Kategori -->
                       <div class="flex flex-wrap gap-2">
@@ -899,6 +1026,51 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+
+          <!-- CARD BUKTI TRANSAKSI -->
+          <div :class="['p-5 rounded-2xl border', themeClasses.cardGlass]">
+            <h2 :class="['text-base font-bold mb-1 flex items-center gap-2', themeClasses.text]">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Bukti Transaksi
+            </h2>
+            <p :class="['text-xs mb-4', themeClasses.textMuted]">Klik untuk membuka bukti di Google Drive.</p>
+
+            <div v-if="transactionsWithProof.length === 0" :class="['text-center py-6 opacity-50', themeClasses.textMuted]">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto mb-2 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <p class="text-xs">Belum ada bukti transaksi yang diupload</p>
+            </div>
+
+            <div v-else class="space-y-2 max-h-72 overflow-y-auto">
+              <a
+                v-for="t in transactionsWithProof"
+                :key="t.id"
+                :href="t.proofUrl.startsWith('https://') ? t.proofUrl : '#'"
+                target="_blank"
+                rel="noopener noreferrer"
+                :class="['flex items-center gap-3 p-3 rounded-xl border transition-all hover:translate-x-1 group cursor-pointer no-underline', themeClasses.cardContent,
+                  isDarkMode ? 'hover:border-indigo-400/40' : 'hover:border-indigo-300 hover:shadow-sm']">
+                <div class="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
+                  :class="isDarkMode ? 'bg-indigo-500/20' : 'bg-indigo-100'">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p :class="['font-semibold text-xs truncate', themeClasses.text]">{{ t.category }} — {{ t.description }}</p>
+                  <p :class="['text-[10px] mt-0.5', themeClasses.textMuted]">{{ formatDate(t.date) }}</p>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 transition flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -970,15 +1142,11 @@ onUnmounted(() => {
           </div>
 
           <!-- Form Fields -->
+          <!-- === KAS ANGGOTA === -->
           <div v-if="formType === 'in' && incomeSource === 'anggota'">
-            <!-- Dropdown Pilih Anggota -->
             <div class="mb-4">
-              <label :class="['block text-xs font-bold uppercase mb-1', isDarkMode ? 'text-blue-300' : 'text-blue-700']">Pilih
-                Anggota</label>
-              <select v-model="formData.targetNia" @change="checkDuesStatus(formData.targetNia)" :class="[
-                'w-full rounded-lg p-3 font-semibold outline-none cursor-pointer',
-                modalInputClass
-              ]">
+              <label :class="['block text-xs font-bold uppercase mb-1', isDarkMode ? 'text-blue-300' : 'text-blue-700']">Pilih Anggota</label>
+              <select v-model="formData.targetNia" @change="checkDuesStatus(formData.targetNia)" :class="['w-full rounded-lg p-3 font-semibold outline-none cursor-pointer', modalInputClass]">
                 <option value="" disabled class="text-gray-500">Pilih anggota...</option>
                 <option v-for="m in membersList" :key="m.nia || m.id || m" :value="m.nia"
                   :class="isDarkMode ? 'text-white bg-slate-900' : 'text-gray-900 bg-white'">
@@ -986,25 +1154,58 @@ onUnmounted(() => {
                 </option>
               </select>
             </div>
-            <div>
+            <div class="mb-4">
               <label class="block text-xs font-bold uppercase opacity-70 mb-1">Nominal (Rp)</label>
               <input type="number" v-model="formData.amount" placeholder="0"
                 :class="['w-full rounded-lg p-3 outline-none', modalInputClass]">
             </div>
-            <!-- Hapus input kategori, kategori otomatis -->
+            <!-- Metode Pembayaran -->
+            <div class="mb-4">
+              <label class="block text-xs font-bold uppercase opacity-70 mb-2">Metode Pembayaran</label>
+              <div class="p-1 rounded-lg flex text-sm font-medium" :class="isDarkMode ? 'bg-black/20' : 'bg-slate-100'">
+                <button type="button" @click="paymentMethod = 'cash'" :class="['flex-1 py-2 rounded-md transition-all', paymentMethod === 'cash' ? 'bg-emerald-600 shadow text-white' : modalInactiveTabClass]">
+                  Cash
+                </button>
+                <button type="button" @click="paymentMethod = 'non-cash'" :class="['flex-1 py-2 rounded-md transition-all', paymentMethod === 'non-cash' ? 'bg-emerald-600 shadow text-white' : modalInactiveTabClass]">
+                  Non-Cash
+                </button>
+              </div>
+            </div>
+            <!-- Upload bukti — hanya untuk non-cash -->
+            <div v-if="paymentMethod === 'non-cash'" class="mb-4">
+              <label class="block text-xs font-bold uppercase opacity-70 mb-1">Bukti Transaksi <span class="text-rose-400">*</span></label>
+              <input type="file" accept="image/*,application/pdf" @change="handleProofFile"
+                :class="['w-full rounded-lg p-2 outline-none text-sm', modalInputClass]">
+              <p class="text-xs opacity-50 mt-1">Format: JPG, PNG, PDF</p>
+            </div>
             <input type="hidden" v-model="formData.category" value="Kas Anggota" />
           </div>
 
+          <!-- === DANA EKSTERNAL & PENGELUARAN === -->
           <div v-else>
-            <div>
+            <div class="mb-4">
               <label class="block text-xs font-bold uppercase opacity-70 mb-1">Nominal (Rp)</label>
               <input type="number" v-model="formData.amount" placeholder="0"
                 :class="['w-full rounded-lg p-3 outline-none', modalInputClass]">
             </div>
-            <div>
+            <div v-if="formType === 'in'" class="mb-4">
+              <label class="block text-xs font-bold uppercase opacity-70 mb-1">Kategori</label>
+              <input type="text" v-model="formData.category" placeholder="Cth: Sponsor"
+                :class="['w-full rounded-lg p-3 outline-none', modalInputClass]">
+            </div>
+            <div v-else class="mb-4">
               <label class="block text-xs font-bold uppercase opacity-70 mb-1">Kategori</label>
               <input type="text" v-model="formData.category" placeholder="Cth: Operasional"
                 :class="['w-full rounded-lg p-3 outline-none', modalInputClass]">
+            </div>
+            <!-- Upload bukti — wajib untuk eksternal & pengeluaran -->
+            <div class="mb-4">
+              <label class="block text-xs font-bold uppercase opacity-70 mb-1">
+                Bukti Transaksi <span class="text-rose-400">*</span>
+              </label>
+              <input type="file" accept="image/*,application/pdf" @change="handleProofFile"
+                :class="['w-full rounded-lg p-2 outline-none text-sm', modalInputClass]">
+              <p class="text-xs opacity-50 mt-1">Format: JPG, PNG, PDF — Wajib diisi</p>
             </div>
           </div>
 
@@ -1016,14 +1217,9 @@ onUnmounted(() => {
 
           <!-- Tombol Input Data -->
           <div class="mt-6 flex justify-end">
-            <button @click="() => {
-              if (formType === 'in' && incomeSource === 'anggota') {
-                formData.category = 'Kas Anggota';
-              }
-              saveTransaction();
-            }"
-              class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg shadow transition-all">
-              Simpan
+            <button @click="saveTransaction" :disabled="isSaving"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ isSaving ? 'Menyimpan...' : 'Simpan' }}
             </button>
           </div>
 

@@ -1,14 +1,22 @@
 import { Module } from '@nestjs/common';
+import { MulterModule } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { MembersController } from './members.controller';
 import { MembersService } from './members.service';
-import { PrismaService } from '../prisma/prisma.service'; // Import ini
+import { PrismaService } from '../prisma/prisma.service';
+import { GoogleDriveService } from '../documents/google-drive.service';
 
 @Module({
-  imports: [], 
+  imports: [
+    MulterModule.register({
+      storage: memoryStorage(),
+    }),
+  ],
   controllers: [MembersController],
   providers: [
     MembersService,
-    PrismaService // Daftarkan PrismaService di sini
+    PrismaService,
+    GoogleDriveService,
   ],
 })
 export class MembersModule {}
