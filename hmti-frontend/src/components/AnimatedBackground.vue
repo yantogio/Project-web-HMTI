@@ -149,37 +149,37 @@ const pulseRings = [
          Each orb in its own wrapper so JS translate + CSS blob don't conflict
          ════════════════════════════════ -->
     <div class="absolute -top-20 left-1/4" :style="orbStyle(0)">
-      <div :class="['w-72 h-72 md:w-96 md:h-96 rounded-full filter blur-3xl opacity-25 animate-blob',
-        isDarkMode ? 'bg-blue-600' : 'bg-primary-blue/35']"></div>
+      <div :class="['w-72 h-72 md:w-96 md:h-96 rounded-full filter blur-3xl animate-blob',
+        isDarkMode ? 'bg-blue-600 opacity-25' : 'bg-blue-600 opacity-40']"></div>
     </div>
 
     <div class="absolute top-10 right-1/4" :style="orbStyle(1)">
-      <div :class="['w-80 h-80 md:w-96 md:h-96 rounded-full filter blur-3xl opacity-20 animate-blob animation-delay-2000',
-        isDarkMode ? 'bg-indigo-600' : 'bg-accent-orange/25']"></div>
+      <div :class="['w-80 h-80 md:w-96 md:h-96 rounded-full filter blur-3xl animate-blob animation-delay-2000',
+        isDarkMode ? 'bg-indigo-600 opacity-20' : 'bg-orange-500 opacity-35']"></div>
     </div>
 
     <div class="absolute top-1/3 left-10" :style="orbStyle(2)">
-      <div :class="['w-64 h-64 md:w-80 md:h-80 rounded-full filter blur-3xl opacity-20 animate-blob animation-delay-4000',
-        isDarkMode ? 'bg-purple-600' : 'bg-amber-400/45']"></div>
+      <div :class="['w-64 h-64 md:w-80 md:h-80 rounded-full filter blur-3xl animate-blob animation-delay-4000',
+        isDarkMode ? 'bg-purple-600 opacity-20' : 'bg-amber-600 opacity-40']"></div>
     </div>
 
     <div class="absolute top-1/2 right-10" :style="orbStyle(3)">
-      <div :class="['w-56 h-56 md:w-72 md:h-72 rounded-full filter blur-3xl opacity-15 animate-blob animation-delay-3000',
-        isDarkMode ? 'bg-teal-500' : 'bg-primary-blue/20']"></div>
+      <div :class="['w-56 h-56 md:w-72 md:h-72 rounded-full filter blur-3xl animate-blob animation-delay-3000',
+        isDarkMode ? 'bg-teal-500 opacity-15' : 'bg-indigo-500 opacity-30']"></div>
     </div>
 
     <div class="absolute bottom-1/4 left-1/4" :style="orbStyle(4)">
-      <div :class="['w-72 h-72 rounded-full filter blur-3xl opacity-15 animate-blob animation-delay-1000',
-        isDarkMode ? 'bg-pink-600' : 'bg-accent-orange/15']"></div>
+      <div :class="['w-72 h-72 rounded-full filter blur-3xl animate-blob animation-delay-1000',
+        isDarkMode ? 'bg-pink-600 opacity-15' : 'bg-orange-600 opacity-30']"></div>
     </div>
 
     <div class="absolute bottom-10 right-1/3" :style="orbStyle(5)">
-      <div :class="['w-48 h-48 md:w-64 md:h-64 rounded-full filter blur-3xl opacity-20 animate-blob animation-delay-5000',
-        isDarkMode ? 'bg-cyan-500' : 'bg-amber-300/40']"></div>
+      <div :class="['w-48 h-48 md:w-64 md:h-64 rounded-full filter blur-3xl animate-blob animation-delay-5000',
+        isDarkMode ? 'bg-cyan-500 opacity-20' : 'bg-amber-700 opacity-35']"></div>
     </div>
 
     <div v-if="!isDarkMode" class="absolute top-3/4 left-2/3" :style="orbStyle(6)">
-      <div class="w-48 h-48 rounded-full filter blur-3xl opacity-25 animate-blob animation-delay-2000 bg-cream-dark/50"></div>
+      <div class="w-48 h-48 rounded-full filter blur-3xl opacity-30 animate-blob animation-delay-2000 bg-blue-700"></div>
     </div>
 
     <!-- ════════════════════════════════

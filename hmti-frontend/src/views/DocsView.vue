@@ -5,10 +5,14 @@ import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import AdminPageLayout from '../components/AdminPageLayout.vue'
 import { uploadDocument, getDocuments, deleteDocument } from '../api/documentApi'
+import { useToast } from '../composables/useToast'
+import { useConfirm } from '../composables/useConfirm'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
+const { confirm: confirmDialog } = useConfirm()
 
 // --- 1. STATE UTAMA ---
 const docs = ref([])
@@ -61,7 +65,7 @@ const openGoogleDrivePreview = (doc) => {
     // Fallback jika driveFileId tidak ada
     window.open(doc.fileUrl, '_blank');
   } else {
-    alert('Link preview tidak tersedia.');
+    toastWarning('Link preview tidak tersedia.')
   }
 }
 
@@ -147,11 +151,11 @@ const handleFileUpload = async (event) => {
 
   try {
     await uploadDocument(formData)
-    alert('Upload Berhasil, sob!')
+    toastSuccess('Upload berhasil!')
     fetchDocs()
   } catch (err) {
     const msg = err.response?.status === 403 ? 'Hanya Ketua, Bendahara, dan Sekretaris yang dapat upload dokumen.' : 'Gagal upload. Cek koneksi backend!'
-    alert(msg)
+    toastError(msg)
   } finally {
     isUploading.value = false
     if (fileInput.value) fileInput.value.value = '' // Reset input file supaya bisa upload file yang sama
@@ -159,15 +163,16 @@ const handleFileUpload = async (event) => {
 }
 
 const deleteDoc = async (id) => {
-  if (!confirm('Yakin mau hapus dokumen ini, sob?')) return
+  const ok = await confirmDialog('Yakin mau hapus dokumen ini?')
+  if (!ok) return
 
   try {
     await deleteDocument(id)
-    alert('Berhasil dihapus!')
+    toastSuccess('Dokumen berhasil dihapus!')
     await fetchDocs()
   } catch (err) {
     console.error(err)
-    alert('Gagal hapus, cuk! Cek console.')
+    toastError('Gagal hapus dokumen.')
   }
 }
 
@@ -182,9 +187,26 @@ const getDocumentUrl = (doc, action = 'preview') => {
 const isImage = (mimeType) => mimeType?.startsWith('image/')
 const isVideo = (mimeType) => mimeType?.startsWith('video/')
 
+const DRIVE_PREVIEW_MIMES = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+])
+const isDrivePreviewable = (mimeType) => DRIVE_PREVIEW_MIMES.has(mimeType)
+
 const openFilePicker = () => {
   fileInput.value?.click()
 }
+
+const activeAccept = computed(() => {
+  if (activeTab.value === 'media') return 'image/*,video/*,.psd,.ai,.fig,.sketch'
+  if (activeTab.value === 'branding') return 'image/*,.psd,.ai,.fig,.sketch,.svg,.eps'
+  return '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.ods,.odp'
+})
 
 // --- 3. FILTER & THEME ---
 const filteredDocs = computed(() => {
@@ -248,7 +270,7 @@ const getPlaceholderImage = (mimeType) => {
 
     <!-- MAIN CONTENT -->
     <main class="relative z-10 max-w-7xl mx-auto px-4 py-8">
-      <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload" accept=".pdf,.docx,.jpg,.jpeg,.png,.MP4" />
+      <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload" :accept="activeAccept" />
 
       <!-- HEADER SECTION -->
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
@@ -359,14 +381,9 @@ const getPlaceholderImage = (mimeType) => {
                 </td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex justify-end items-center gap-1">
-                    <!-- Preview (for PDF/DOCX, open in new tab via Google Drive link; otherwise, use modal) -->
-                    <button @click="
-                      l.category === 'application/pdf' || l.category === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                        ? openGoogleDrivePreview(l)
-                        : openPreview(l)
-                    "
-                      :title="l.category === 'application/pdf' || l.category === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                        ? 'Preview di Google Drive' : 'Preview'"
+                    <!-- Preview (PDF/DOCX/PPT/PPTX/XLS/XLSX → Google Drive; others → modal) -->
+                    <button @click="isDrivePreviewable(l.category) ? openGoogleDrivePreview(l) : openPreview(l)"
+                      :title="isDrivePreviewable(l.category) ? 'Preview di Google Drive' : 'Preview'"
                       :class="['p-2 rounded-lg transition-all', isDarkMode ? 'text-blue-400 hover:bg-blue-500/15 hover:text-blue-300' : 'text-blue-600 hover:bg-blue-500/10 hover:text-blue-700']">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />

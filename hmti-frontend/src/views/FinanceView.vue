@@ -124,6 +124,8 @@ const saveConfig = async () => {
     })
     toastSuccess('Konfigurasi iuran berhasil disimpan!')
     fetchConfig()
+    fetchDuesList()
+    fetchDuesSummary()
   } catch (e) {
     console.error(e)
     toastError('Gagal menyimpan konfigurasi: ' + (e.response?.data?.message || e.message))
@@ -158,17 +160,20 @@ const fetchDuesSummary = async () => {
 }
 
 // --- 2.3 FUNGSI GENERATE TAGIHAN (TRIGGER MANUAL) ---
-const generateDues = async () => {
-  // Kita pakai prompt browser sederhana agar cepat
-  // Nanti kalau mau bagus, bisa dibuatkan modal tersendiri
-  const periodInput = prompt('Masukkan Periode Tagihan (Contoh: 2023-10):')
+const generateDues = () => {
+  const today = new Date()
+  const yyyy = today.getFullYear()
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  generatePeriodInput.value = `${yyyy}-${mm}`
+  isGenerateModalOpen.value = true
+}
 
+const confirmGenerateDues = async () => {
+  const periodInput = generatePeriodInput.value.trim()
   if (!periodInput) return
 
   try {
-    // Konversi period string "2023-10" menjadi Bulan & Tahun angka
     const [year, month] = periodInput.split('-')
-
     await axios.post('http://localhost:3000/finance/generate-dues', {
       period: periodInput,
       month: parseInt(month),
@@ -178,14 +183,10 @@ const generateDues = async () => {
     })
 
     toastSuccess('Tagihan berhasil dibuat untuk semua anggota aktif!')
-
-    // Refresh daftar status dan ringkasan tagihan
+    isGenerateModalOpen.value = false
     fetchDuesList()
     fetchDuesSummary()
-
-    // Refresh juga timeline transaksi (agar ada record pembayaran jika ada credit otomatis, nanti)
     fetchTransactions()
-
   } catch (error) {
     console.error(error)
     toastError('Gagal membuat tagihan: ' + (error.response?.data?.message || 'Server error'))
@@ -288,6 +289,10 @@ const isSaving = ref(false)
 const reportFrom = ref('')
 const reportTo = ref('')
 const isDownloading = ref(false)
+
+// --- MODAL GENERATE TAGIHAN ---
+const isGenerateModalOpen = ref(false)
+const generatePeriodInput = ref('')
 
 // Hanya Bendahara yang boleh Menulis (Tombol FAB)
 const isBendahara = computed(() => authStore.user?.role === 'bendahara')
@@ -1227,6 +1232,44 @@ onUnmounted(() => {
       </div>
 
     </div>
+
+    <!-- MODAL GENERATE TAGIHAN -->
+    <div v-if="isGenerateModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isGenerateModalOpen = false"></div>
+      <div :class="['relative w-full max-w-sm rounded-2xl shadow-2xl p-6 overflow-hidden',
+        isDarkMode ? 'bg-slate-800 border border-white/10 text-white' : 'bg-white border border-slate-200 text-slate-900']">
+
+        <div class="flex justify-between items-center mb-5">
+          <h3 class="text-lg font-bold">Buat Tagihan Iuran</h3>
+          <button @click="isGenerateModalOpen = false" :class="['opacity-50 hover:opacity-100 transition-opacity', isDarkMode ? 'text-white' : 'text-slate-700']">✕</button>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label :class="['block text-xs font-bold uppercase mb-2', isDarkMode ? 'text-blue-300' : 'text-blue-700']">Periode Tagihan (YYYY-MM)</label>
+            <input
+              v-model="generatePeriodInput"
+              type="text"
+              placeholder="Contoh: 2025-06"
+              :class="['w-full px-4 py-3 rounded-xl outline-none transition-all', isDarkMode ? 'bg-white/5 border border-white/10 text-white placeholder-blue-300/40 focus:border-blue-500' : 'bg-white border border-stone-300 text-stone-900 placeholder-stone-400 focus:border-primary-blue']"
+            />
+          </div>
+
+          <div class="flex gap-3 pt-2">
+            <button @click="isGenerateModalOpen = false"
+              :class="['flex-1 px-4 py-2.5 rounded-xl font-semibold text-sm border transition-all', isDarkMode ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50']">
+              Batal
+            </button>
+            <button @click="confirmGenerateDues"
+              class="flex-1 px-4 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
+              Buat Tagihan
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </AdminPageLayout>
 </template>
 
