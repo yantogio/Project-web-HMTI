@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Blackbox Testing — Sistem Informasi Web HMTI</title>
+  <style>
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt;
+      margin: 2.5cm 3cm;
+      color: #000;
+      background: #fff;
+    }
+    h1 {
+      text-align: center;
+      font-size: 14pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    h2 {
+      font-size: 12pt;
+      font-weight: bold;
+      margin-top: 24px;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 11pt;
+      margin-bottom: 2px;
+    }
+    .meta {
+      text-align: center;
+      font-size: 10pt;
+      color: #444;
+      margin-bottom: 20px;
+    }
+    hr {
+      border: none;
+      border-top: 2px solid #000;
+      margin: 12px 0 20px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 10.5pt;
+      page-break-inside: auto;
+    }
+    thead tr {
+      background-color: #1e3a5f;
+      color: #fff;
+    }
+    thead th {
+      border: 1px solid #000;
+      padding: 6px 8px;
+      text-align: center;
+      font-weight: bold;
+    }
+    tbody tr:nth-child(even) {
+      background-color: #f0f4f8;
+    }
+    tbody tr:hover {
+      background-color: #dce8f5;
+    }
+    td {
+      border: 1px solid #888;
+      padding: 5px 8px;
+      vertical-align: top;
+    }
+    td.no {
+      text-align: center;
+      white-space: nowrap;
+      width: 55px;
+    }
+    td.status {
+      text-align: center;
+      width: 70px;
+    }
+    td.catatan {
+      width: 130px;
+    }
+    .pass { color: #1a7a1a; font-weight: bold; }
+    .fail { color: #cc0000; font-weight: bold; }
+    .section-label {
+      font-size: 10pt;
+      color: #444;
+      font-style: italic;
+      margin-bottom: 4px;
+    }
+    @media print {
+      body { margin: 1.5cm 2cm; }
+      thead { display: table-header-group; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Tabel Pengujian Blackbox Testing</h1>
+<p class="subtitle">Sistem Informasi Web Himpunan Mahasiswa Teknik Informatika (HMTI)</p>
+<p class="meta">Tanggal Pengujian: __________________ &nbsp;|&nbsp; Penguji: __________________</p>
+<hr>
+
+<!-- ===== MODUL 1 ===== -->
+<h2>Modul 1: Autentikasi</h2>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-01</td>
+      <td>Login berhasil</td>
+      <td>Masukkan NIA &amp; password yang valid → klik Login</td>
+      <td>Diarahkan ke <code>/admin</code>, token tersimpan di localStorage</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-02</td>
+      <td>Login gagal — password salah</td>
+      <td>Masukkan NIA valid, password salah → klik Login</td>
+      <td>Pesan error muncul, tetap di halaman login</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-03</td>
+      <td>Login gagal — NIA tidak terdaftar</td>
+      <td>Masukkan NIA yang tidak ada → klik Login</td>
+      <td>Pesan error muncul, tetap di halaman login</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-04</td>
+      <td>Login gagal — field kosong</td>
+      <td>Klik Login tanpa mengisi apapun</td>
+      <td>Validasi muncul atau error dari server</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-05</td>
+      <td>Akses halaman admin tanpa login</td>
+      <td>Langsung buka <code>/admin</code> di browser tanpa login</td>
+      <td>Diarahkan ke <code>/login</code></td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-06</td>
+      <td>Akses halaman finance tanpa login</td>
+      <td>Langsung buka <code>/admin/finance</code></td>
+      <td>Diarahkan ke <code>/login</code></td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-07</td>
+      <td>Logout</td>
+      <td>Klik tombol logout saat sudah login</td>
+      <td>Token &amp; user data terhapus dari localStorage, diarahkan ke halaman login</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-08</td>
+      <td>Akses setelah logout</td>
+      <td>Setelah logout, tekan tombol Back di browser</td>
+      <td>Tidak bisa masuk ke halaman admin (redirect ke login)</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-09</td>
+      <td>Session persisten</td>
+      <td>Login → tutup browser → buka lagi → buka <code>/admin</code></td>
+      <td>Masih dalam keadaan login (token masih ada di localStorage)</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ===== MODUL 2 ===== -->
+<h2>Modul 2: Halaman Home (Publik)</h2>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-10</td>
+      <td>Akses halaman publik tanpa login</td>
+      <td>Buka <code>/</code> tanpa login</td>
+      <td>Halaman landing berhasil tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-11</td>
+      <td>Tampil carousel pengurus</td>
+      <td>Buka <code>/</code></td>
+      <td>Foto/avatar pengurus tampil di carousel</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-12</td>
+      <td>Fallback avatar carousel</td>
+      <td>Pengurus belum upload foto → buka <code>/</code></td>
+      <td>Inisial nama atau avatar placeholder tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-13</td>
+      <td>Animasi background light mode</td>
+      <td>Set tema ke light mode → buka <code>/</code></td>
+      <td>Orbs animasi terlihat jelas di background</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-14</td>
+      <td>Animasi background dark mode</td>
+      <td>Set tema ke dark mode → buka <code>/</code></td>
+      <td>Orbs animasi tampil normal, tidak berubah dari sebelumnya</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ===== MODUL 3 ===== -->
+<h2>Modul 3: Profil Pengguna</h2>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-15</td>
+      <td>Lihat profil</td>
+      <td>Login → buka <code>/admin/profile</code></td>
+      <td>Data profil diri sendiri tampil (nama, NIA, email, dll)</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-16</td>
+      <td>Edit profil berhasil</td>
+      <td>Ubah salah satu field profil → simpan</td>
+      <td>Data terupdate, notifikasi sukses muncul</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-17</td>
+      <td>Ganti password berhasil</td>
+      <td>Masukkan password lama yang benar + password baru → simpan</td>
+      <td>Password berhasil diubah, notifikasi sukses muncul</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-18</td>
+      <td>Ganti password — password lama salah</td>
+      <td>Masukkan password lama yang salah</td>
+      <td>Pesan error muncul, password tidak berubah</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-19</td>
+      <td>Upload foto profil berhasil</td>
+      <td>Pilih gambar JPEG/PNG ≤ 2MB → upload</td>
+      <td>Foto baru langsung tampil di halaman profil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-20</td>
+      <td>Upload foto — tipe file tidak valid</td>
+      <td>Coba upload file PDF atau GIF</td>
+      <td>Pesan error muncul, foto tidak berubah</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-21</td>
+      <td>Upload foto — ukuran terlalu besar</td>
+      <td>Coba upload gambar lebih dari 2MB</td>
+      <td>Pesan error ukuran file muncul</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-22</td>
+      <td>Ganti foto profil</td>
+      <td>Upload foto pertama → upload foto kedua</td>
+      <td>Foto baru tampil, foto lama terganti</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-23</td>
+      <td>Profil tanpa foto</td>
+      <td>Buka profil user yang belum upload foto</td>
+      <td>Inisial nama tampil sebagai avatar placeholder</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ===== MODUL 4 ===== -->
+<h2>Modul 4: Manajemen Anggota</h2>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-24</td>
+      <td>Lihat daftar anggota</td>
+      <td>Login (role apapun) → buka <code>/admin/members</code></td>
+      <td>Tabel daftar anggota tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-25</td>
+      <td>Foto anggota di tabel</td>
+      <td>Anggota yang sudah upload foto → lihat tabel</td>
+      <td>Foto tampil di kolom foto</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-26</td>
+      <td>Fallback foto di tabel</td>
+      <td>Anggota belum upload foto → lihat tabel</td>
+      <td>Inisial/placeholder tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-27</td>
+      <td>Lihat detail anggota</td>
+      <td>Klik baris anggota di tabel</td>
+      <td>Modal detail anggota muncul dengan data lengkap dan foto</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-28</td>
+      <td>Edit anggota (role ketum)</td>
+      <td>Login sebagai ketum → edit data anggota</td>
+      <td>Data berhasil diubah</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-29</td>
+      <td>Edit anggota (role anggota)</td>
+      <td>Login sebagai anggota biasa → coba akses edit</td>
+      <td>Tombol edit tidak tersedia / request ditolak</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-30</td>
+      <td>Hapus anggota berhasil</td>
+      <td>Login sebagai ketum/sekretaris/bendahara → hapus anggota</td>
+      <td>Anggota terhapus dari tabel, notifikasi sukses muncul</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-31</td>
+      <td>Download template Excel</td>
+      <td>Klik tombol Download Template</td>
+      <td>File Excel template berhasil terunduh dengan kolom yang benar</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-32</td>
+      <td>Import anggota berhasil</td>
+      <td>Isi file Excel sesuai template → import</td>
+      <td>Anggota berhasil ditambahkan, tabel refresh otomatis</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-33</td>
+      <td>Import — file bukan Excel</td>
+      <td>Coba import file PDF atau CSV</td>
+      <td>Pesan error tipe file tidak valid muncul</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-34</td>
+      <td>Import — NIA duplikat</td>
+      <td>Import file dengan NIA yang sudah ada di database</td>
+      <td>Baris duplikat dilewati, baris lain tetap diproses</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-35</td>
+      <td>Import — field wajib kosong</td>
+      <td>Import file Excel dengan kolom wajib yang dikosongkan</td>
+      <td>Baris tersebut dilewati atau ditandai error di hasil import</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-36</td>
+      <td>Import — role tidak valid</td>
+      <td>Isi kolom Role dengan nilai selain yang diizinkan</td>
+      <td>Baris tersebut dilewati atau ditandai error</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-37</td>
+      <td>Download template (anggota biasa)</td>
+      <td>Login sebagai anggota → cek halaman Anggota</td>
+      <td>Tombol Download Template tidak muncul</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ===== MODUL 5 ===== -->
+<h2>Modul 5: Keuangan</h2>
+
+<p class="section-label">5A — Konfigurasi Iuran</p>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-38</td>
+      <td>Lihat konfigurasi iuran</td>
+      <td>Login sebagai bendahara → buka <code>/admin/finance</code></td>
+      <td>Konfigurasi iuran tampil (nominal, denda, tanggal jatuh tempo)</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-39</td>
+      <td>Simpan konfigurasi berhasil</td>
+      <td>Ubah nominal iuran → simpan</td>
+      <td>Konfigurasi tersimpan, panel status iuran langsung update tanpa reload halaman</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-40</td>
+      <td>Akses konfigurasi (bukan bendahara)</td>
+      <td>Login sebagai ketum/sekretaris → coba akses form config</td>
+      <td>Form config tidak tampil atau request ditolak</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="section-label">5B — Generate Tagihan</p>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-41</td>
+      <td>Buat tagihan bulan ini</td>
+      <td>Login sebagai bendahara/ketum → klik "Buat Tagihan"</td>
+      <td>Modal periode muncul, terisi bulan saat ini secara otomatis</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-42</td>
+      <td>Konfirmasi generate tagihan</td>
+      <td>Di modal → klik konfirmasi</td>
+      <td>Tagihan dibuat, daftar iuran dan summary refresh otomatis</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-43</td>
+      <td>Batal generate tagihan</td>
+      <td>Di modal → klik batal</td>
+      <td>Modal tertutup, tidak ada API call, data tidak berubah</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-44</td>
+      <td>Generate tagihan (sekretaris)</td>
+      <td>Login sebagai sekretaris → cek tombol Generate</td>
+      <td>Tombol tidak tersedia</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="section-label">5C — Transaksi &amp; Laporan</p>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-45</td>
+      <td>Lihat daftar transaksi</td>
+      <td>Login sebagai bendahara → lihat tab transaksi</td>
+      <td>Daftar transaksi tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-46</td>
+      <td>Input transaksi pemasukan</td>
+      <td>Isi form transaksi kas anggota → submit</td>
+      <td>Transaksi tersimpan, daftar transaksi refresh</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-47</td>
+      <td>Input transaksi + bukti</td>
+      <td>Isi form transaksi → pilih file bukti → submit</td>
+      <td>Transaksi tersimpan beserta file bukti yang terupload</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-48</td>
+      <td>Lihat daftar bukti transaksi</td>
+      <td>Buka panel bukti transaksi</td>
+      <td>Daftar bukti tampil, nama item terbentuk dari kategori + deskripsi</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-49</td>
+      <td>Buka bukti di Google Drive</td>
+      <td>Klik item di daftar bukti transaksi</td>
+      <td>File terbuka di Google Drive (tab baru)</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-50</td>
+      <td>Download laporan (bendahara)</td>
+      <td>Login sebagai bendahara → klik Download Laporan</td>
+      <td>File laporan berhasil terunduh</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-51</td>
+      <td>Download laporan (bukan bendahara)</td>
+      <td>Login sebagai ketum → coba akses download laporan</td>
+      <td>Request ditolak atau tombol tidak tersedia</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="section-label">5D — Status Iuran Anggota</p>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-52</td>
+      <td>Lihat status iuran</td>
+      <td>Buka halaman keuangan</td>
+      <td>Panel status iuran per anggota tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-53</td>
+      <td>Lihat ringkasan iuran</td>
+      <td>Buka halaman keuangan</td>
+      <td>Summary (total lunas, belum lunas, dll) tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ===== MODUL 6 ===== -->
+<h2>Modul 6: Dokumen</h2>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-54</td>
+      <td>Lihat dokumen — tab Arsip Surat</td>
+      <td>Buka DocsView → klik tab Arsip Surat</td>
+      <td>Daftar dokumen arsip surat tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-55</td>
+      <td>Lihat dokumen — tab Media Event</td>
+      <td>Klik tab Media Event</td>
+      <td>Daftar media event tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-56</td>
+      <td>Lihat dokumen — tab Branding Kit</td>
+      <td>Klik tab Branding Kit</td>
+      <td>Daftar branding kit tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-57</td>
+      <td>Upload dokumen berhasil</td>
+      <td>Tab Arsip Surat → klik upload → pilih PDF → upload</td>
+      <td>Dokumen berhasil diupload, notifikasi sukses muncul</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-58</td>
+      <td>Filter file picker tab Arsip Surat</td>
+      <td>Klik upload di tab Arsip Surat → buka file dialog</td>
+      <td>OS dialog hanya menampilkan format dokumen (PDF, Word, Excel, dll)</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-59</td>
+      <td>Filter file picker tab Media Event</td>
+      <td>Klik upload di tab Media Event → buka file dialog</td>
+      <td>OS dialog menampilkan image, video, dan design files</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-60</td>
+      <td>Filter file picker tab Branding Kit</td>
+      <td>Klik upload di tab Branding Kit → buka file dialog</td>
+      <td>OS dialog menampilkan image dan design files (tanpa video)</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-61</td>
+      <td>Preview dokumen</td>
+      <td>Klik ikon preview pada dokumen</td>
+      <td>Dokumen terbuka di preview (Google Drive atau tab baru)</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-62</td>
+      <td>Download dokumen</td>
+      <td>Klik ikon download pada dokumen</td>
+      <td>File berhasil terunduh</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-63</td>
+      <td>Hapus dokumen berhasil</td>
+      <td>Klik hapus → konfirmasi di dialog</td>
+      <td>Dokumen terhapus, notifikasi sukses muncul (bukan native alert browser)</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-64</td>
+      <td>Batal hapus dokumen</td>
+      <td>Klik hapus → klik batal di dialog konfirmasi</td>
+      <td>Dokumen tidak terhapus, tetap ada di daftar</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-65</td>
+      <td>Upload dokumen (anggota biasa)</td>
+      <td>Login sebagai anggota → coba upload di DocsView</td>
+      <td>Tombol upload tidak tersedia atau request ditolak</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-66</td>
+      <td>Notifikasi tidak pakai alert browser</td>
+      <td>Lakukan aksi upload atau hapus dokumen</td>
+      <td>Notifikasi muncul sebagai toast (bukan popup alert bawaan browser)</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ===== MODUL 7 ===== -->
+<h2>Modul 7: Showcase Hub</h2>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-67</td>
+      <td>Lihat showcase publik</td>
+      <td>Buka halaman showcase tanpa login</td>
+      <td>Showcase yang berstatus aktif tampil</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-68</td>
+      <td>Tambah showcase</td>
+      <td>Login sebagai ketum/sekretaris/bendahara → tambah showcase baru</td>
+      <td>Showcase berhasil ditambahkan dan muncul di daftar</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-69</td>
+      <td>Toggle aktif/nonaktif showcase</td>
+      <td>Klik toggle pada salah satu showcase</td>
+      <td>Status berubah, tampilan di halaman publik menyesuaikan</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-70</td>
+      <td>Hapus showcase</td>
+      <td>Klik hapus pada showcase → konfirmasi</td>
+      <td>Showcase terhapus dari daftar</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-71</td>
+      <td>Showcase nonaktif tidak tampil publik</td>
+      <td>Nonaktifkan showcase → buka halaman publik</td>
+      <td>Showcase tidak tampil di halaman publik</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-72</td>
+      <td>Akses manage showcase (anggota biasa)</td>
+      <td>Login sebagai anggota → buka showcase</td>
+      <td>Tombol tambah/hapus/toggle tidak tersedia</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ===== MODUL 8 ===== -->
+<h2>Modul 8: Navigasi &amp; UI Umum</h2>
+<table>
+  <thead>
+    <tr>
+      <th>No</th>
+      <th>Skenario Pengujian</th>
+      <th>Langkah Pengujian</th>
+      <th>Expected Result</th>
+      <th>Status</th>
+      <th>Catatan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="no">TC-73</td>
+      <td>Sidebar navigasi</td>
+      <td>Login → cek sidebar</td>
+      <td>Semua menu tersedia dan bisa diklik</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-74</td>
+      <td>Tema dark mode</td>
+      <td>Toggle ke dark mode</td>
+      <td>Seluruh halaman berubah ke tema gelap</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-75</td>
+      <td>Tema light mode</td>
+      <td>Toggle ke light mode</td>
+      <td>Seluruh halaman berubah ke tema terang, animasi background tetap terlihat</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-76</td>
+      <td>Tampilan responsif</td>
+      <td>Buka di layar ≤ 768px atau resize browser ke ukuran kecil</td>
+      <td>Layout menyesuaikan, tidak ada konten yang overflow</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-77</td>
+      <td>Notifikasi toast sukses</td>
+      <td>Lakukan aksi yang berhasil (simpan, upload, dll)</td>
+      <td>Toast hijau muncul dan hilang otomatis</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+    <tr>
+      <td class="no">TC-78</td>
+      <td>Notifikasi toast error</td>
+      <td>Lakukan aksi yang gagal</td>
+      <td>Toast merah muncul dengan pesan yang jelas</td>
+      <td class="status">☐ Pass&nbsp;&nbsp;☐ Fail</td>
+      <td class="catatan"></td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+<p style="text-align:center; font-size:10pt; color:#555;">
+  Total Test Case: <strong>78</strong> &nbsp;|&nbsp;
+  Pass: ________ &nbsp;|&nbsp;
+  Fail: ________ &nbsp;|&nbsp;
+  Persentase Keberhasilan: ________%
+</p>
+
+</body>
+</html>
