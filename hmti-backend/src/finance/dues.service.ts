@@ -84,14 +84,50 @@ export class DuesService {
     return { generated: false, period, pendingLateFeeCount };
   }
 
-  // 3. FUNGSI GENERATE TAGIHAN BULANAN (dengan logika denda otomatis)
+  // 3. FUNGSI TERAPKAN DENDA KE SEMUA TAGIHAN YANG SUDAH LEWAT DEADLINE
+  async applyPendingLateFees(): Promise<number> {
+    const config = await this.prisma.financeConfig.findFirst({ where: { isActive: true } });
+    if (!config || config.lateFee <= 0) return 0;
+
+    const now = new Date();
+    const pendingDues = await this.prisma.dues.findMany({
+      where: {
+        status: { in: ['UNPAID', 'PARTIAL'] },
+        lateFeeApplied: false,
+      }
+    });
+
+    let applied = 0;
+    for (const dues of pendingDues) {
+      const finalDate = dues.finalDate
+        ? new Date(dues.finalDate)
+        : new Date(dues.year, dues.month - 1, config.finalDay);
+
+      if (now > finalDate) {
+        await this.prisma.dues.update({
+          where: { id: dues.id },
+          data: {
+            amountDue: dues.amountDue + config.lateFee,
+            lateFeeApplied: true
+          }
+        });
+        applied++;
+      }
+    }
+
+    return applied;
+  }
+
+  // 4. FUNGSI GENERATE TAGIHAN BULANAN
   async generateMonthlyDues(period: string, month: number, year: number) {
     const config = await this.prisma.financeConfig.findFirst({ where: { isActive: true } });
     if (!config) throw new Error('Konfigurasi Keuangan belum diatur.');
 
-    const now = new Date();
+    // Terapkan denda ke semua tagihan yang sudah lewat finalDate sebelum generate baru
+    await this.applyPendingLateFees();
+
     const members = await this.prisma.member.findMany({ where: { status: 'Aktif' } });
-    const results: { nia: string; status: string; duesId?: number; lateFeeApplied?: boolean }[] = [];
+    const results: { nia: string; status: string; duesId?: number }[] = [];
 
     for (const member of members) {
       // Skip jika tagihan periode ini sudah ada
@@ -99,35 +135,6 @@ export class DuesService {
       if (existing) {
         results.push({ nia: member.nia, status: 'SKIP' });
         continue;
-      }
-
-      // STEP 1: Terapkan denda ke semua tagihan lama yang belum lunas & sudah lewat tanggal akhir
-      const previousUnpaidDues = await this.prisma.dues.findMany({
-        where: {
-          memberNia: member.nia,
-          status: { in: ['UNPAID', 'PARTIAL'] },
-          lateFeeApplied: false,
-          period: { not: period }
-        }
-      });
-
-      let lateFeeAppliedThisMember = false;
-      for (const prevDues of previousUnpaidDues) {
-        // Gunakan finalDate yang tersimpan, atau kalkulasi dari config jika belum ada
-        const finalDate = prevDues.finalDate
-          ? new Date(prevDues.finalDate)
-          : new Date(prevDues.year, prevDues.month - 1, config.finalDay);
-
-        if (now > finalDate) {
-          await this.prisma.dues.update({
-            where: { id: prevDues.id },
-            data: {
-              amountDue: prevDues.amountDue + config.lateFee,
-              lateFeeApplied: true
-            }
-          });
-          lateFeeAppliedThisMember = true;
-        }
       }
 
       // STEP 2: Hitung credit carryover dari bulan-bulan sebelumnya
@@ -186,13 +193,13 @@ export class DuesService {
         }
       });
 
-      results.push({ nia: member.nia, status: 'CREATED', duesId: newDues.id, lateFeeApplied: lateFeeAppliedThisMember });
+      results.push({ nia: member.nia, status: 'CREATED', duesId: newDues.id });
     }
 
     return results;
   }
 
-  // 4. FUNGSI APLIKASI PEMBAYARAN UNTUK MEMBER: alokasikan pembayaran ke semua dues (lama dahulu)
+  // 5. FUNGSI APLIKASI PEMBAYARAN UNTUK MEMBER: alokasikan pembayaran ke semua dues (lama dahulu)
   async applyMemberPayment(memberNia: string, amountPaid: number, transactionId: number) {
     let remaining = Number(amountPaid || 0);
 
@@ -297,7 +304,7 @@ export class DuesService {
     return { appliedTo, leftover: remaining };
   }
 
-  // 5. FUNGSI RINGKASAN STATUS SEMUA ANGGOTA
+  // 6. FUNGSI RINGKASAN STATUS SEMUA ANGGOTA
   async getSummary() {
     const dues = await this.prisma.dues.findMany({
       include: {
@@ -354,7 +361,7 @@ export class DuesService {
     return summary;
   }
 
-  // 6. FUNGSI CARI TAGIHAN (Pagination)
+  // 7. FUNGSI CARI TAGIHAN (Pagination)
   async findMany(query: any) {
     const { page = 1, limit = 10, search } = query;
     const skip = (page - 1) * limit;

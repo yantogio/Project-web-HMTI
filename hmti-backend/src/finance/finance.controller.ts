@@ -43,4 +43,12 @@ export class FinanceController {
   generateDues(@Body() body: { period: string, month: number, year: number }) {
     return this.duesService.generateMonthlyDues(body.period, body.month, body.year);
   }
+
+  // 5. Terapkan Denda Keterlambatan (dipanggil otomatis saat page load)
+  @Post('apply-late-fees')
+  @UseGuards(JwtAuthGuard)
+  async applyLateFees() {
+    const applied = await this.duesService.applyPendingLateFees();
+    return { applied };
+  }
 }

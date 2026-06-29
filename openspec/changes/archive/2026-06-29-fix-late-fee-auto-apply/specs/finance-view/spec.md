@@ -1,10 +1,4 @@
-# Spec: Finance View
-
-## Purpose
-
-Defines requirements for the FinanceView component, which handles dues configuration, dues generation, and financial data display for the organization treasurer (bendahara).
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Config save refreshes all dependent data
 After a successful `saveConfig` API call, the system SHALL refresh `financeConfig`, `duesList`, and `duesSummaryList` so that the dues status panel reflects the new configuration immediately without requiring a page reload.
@@ -35,6 +29,8 @@ The "Buat Tagihan Bulan Ini" action SHALL present an inline modal with a text in
 #### Scenario: Generate dues API failure
 - **WHEN** the API call fails
 - **THEN** an error toast SHALL appear and the modal SHALL remain closeable
+
+## ADDED Requirements
 
 ### Requirement: Auto-apply late fees on finance page load
 On mount, the FinanceView component SHALL call `POST /finance/apply-late-fees` so that any dues that have passed their `finalDate` without payment have their late fee applied before the dues summary is displayed.

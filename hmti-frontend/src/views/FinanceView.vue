@@ -159,7 +159,18 @@ const fetchDuesSummary = async () => {
   }
 }
 
-// --- 2.3 FUNGSI GENERATE TAGIHAN (TRIGGER MANUAL) ---
+// --- 2.3 FUNGSI TERAPKAN DENDA KETERLAMBATAN (dipanggil otomatis saat page load) ---
+const applyLateFees = async () => {
+  try {
+    await axios.post('http://localhost:3000/finance/apply-late-fees', {}, {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+  } catch (e) {
+    console.error('apply-late-fees:', e)
+  }
+}
+
+// --- 2.4 FUNGSI GENERATE TAGIHAN (TRIGGER MANUAL) ---
 const generateDues = () => {
   const today = new Date()
   const yyyy = today.getFullYear()
@@ -542,11 +553,15 @@ const setupScrollAnimations = () => {
 
 // Jalankan fetch saat halaman dimuat
 onMounted(async () => {
-  fetchTransactions()
-  fetchConfig()
-  fetchDuesList()
-  fetchDuesSummary()
-  fetchMembers()
+  // Terapkan denda dulu agar data dues yang diambil sudah akurat
+  await applyLateFees()
+  await Promise.allSettled([
+    fetchTransactions(),
+    fetchConfig(),
+    fetchDuesList(),
+    fetchDuesSummary(),
+    fetchMembers()
+  ])
   await nextTick()
   setupScrollAnimations()
 })
