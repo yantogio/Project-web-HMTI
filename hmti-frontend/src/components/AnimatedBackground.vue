@@ -100,7 +100,7 @@ function starStyle(s, isDarkMode) {
     borderRadius: '2px',
     background: isDarkMode
       ? 'linear-gradient(90deg, transparent, rgba(147,197,253,0.9), rgba(255,255,255,1), transparent)'
-      : 'linear-gradient(90deg, transparent, rgba(46,135,246,0.7), rgba(255,255,255,0.95), transparent)',
+      : 'linear-gradient(90deg, transparent, rgba(30,64,175,0.85), rgba(15,23,42,0.95), transparent)',
     animationDelay: s.delay,
     animationDuration: s.dur,
   }
