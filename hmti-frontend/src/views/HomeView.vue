@@ -334,18 +334,19 @@ watch(isDarkMode, async () => {
       isDarkMode ? 'bg-slate-900/60 backdrop-blur-xl border-b border-white/10' : 'bg-cream-light/90 backdrop-blur-xl border-b border-amber-200 shadow-sm'
     ]">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16 md:h-18 items-center">
+        <div class="flex flex-col md:flex-row md:justify-between gap-2 py-2.5 md:py-0 md:h-18 md:items-center">
 
-          <!-- Logo -->
+          <!-- Logo (kecil di mobile, normal di desktop) -->
           <div
-            class="cursor-pointer group transition-transform duration-200 hover:scale-105 active:scale-95"
+            class="cursor-pointer group transition-transform duration-200 hover:scale-105 active:scale-95 min-w-0"
             @click="router.push('/')"
           >
-            <BrandLogo size="md" :isDarkMode="isDarkMode" />
+            <BrandLogo class="md:hidden" size="sm" :isDarkMode="isDarkMode" />
+            <BrandLogo class="hidden md:flex" size="md" :isDarkMode="isDarkMode" />
           </div>
 
-          <!-- Actions -->
-          <div class="flex items-center gap-3 md:gap-4">
+          <!-- Actions (turun ke bawah di mobile) -->
+          <div class="flex items-center justify-end gap-3 md:gap-4">
 
             <button @click="themeStore.toggleTheme()" :class="[
               'p-2.5 md:p-3 rounded-full transition-all duration-300 ease-in-out shrink-0',
@@ -392,7 +393,7 @@ watch(isDarkMode, async () => {
     </nav>
 
     <!-- ==================== MAIN CONTENT ==================== -->
-    <main class="relative z-10 pt-16 md:pt-18">
+    <main class="relative z-10 pt-28 md:pt-18">
 
       <!-- ===== HERO SECTION ===== -->
       <section class="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">

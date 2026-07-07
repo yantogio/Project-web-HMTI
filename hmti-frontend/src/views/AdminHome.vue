@@ -151,15 +151,18 @@ watch(isDarkMode, async () => {
     <!-- NAVBAR (GLASSMORPHISM) -->
     <nav :class="['sticky top-0 z-50 transition-all duration-300', themeClasses.navbarGlass]">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-20">
-          
-          <!-- Logo Area -->
-          <BrandLogo size="md" :isDarkMode="isDarkMode" subtitle="ADMIN" />
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2.5 md:py-0 md:h-20">
 
-          <!-- Right Actions -->
-          <div class="flex items-center gap-4">
+          <!-- Logo Area (kecil di mobile, normal di desktop) -->
+          <div class="flex items-center min-w-0">
+            <BrandLogo class="md:hidden" size="sm" :isDarkMode="isDarkMode" subtitle="ADMIN" />
+            <BrandLogo class="hidden md:flex" size="md" :isDarkMode="isDarkMode" subtitle="ADMIN" />
+          </div>
+
+          <!-- Right Actions (turun ke bawah di mobile) -->
+          <div class="flex items-center justify-end gap-2 md:gap-4">
             <!-- Lihat Website Link -->
-            <a href="/" target="_blank" 
+            <a href="/" target="_blank"
                class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border"
                :class="isDarkMode ? 'border-white/10 text-blue-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-100'">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -169,12 +172,12 @@ watch(isDarkMode, async () => {
             </a>
 
             <!-- User Info & Theme Toggle -->
-            <div class="flex items-center gap-3 border-l pl-4"
+            <div class="flex items-center gap-2 md:gap-3 md:border-l md:pl-4"
                  :class="isDarkMode ? 'border-white/10' : 'border-slate-200'">
-              
+
               <!-- Theme Toggle -->
-              <button @click="themeStore.toggleTheme()" 
-                class="p-2 rounded-full transition-transform hover:rotate-12"
+              <button @click="themeStore.toggleTheme()"
+                class="shrink-0 p-2 rounded-full transition-transform hover:rotate-12"
                 :class="isDarkMode ? 'text-yellow-400' : 'text-slate-400'">
                 <svg v-if="isDarkMode" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -185,8 +188,8 @@ watch(isDarkMode, async () => {
               </button>
 
               <!-- Logout -->
-              <button @click="handleLogout" 
-                class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:scale-105 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30">
+              <button @click="handleLogout"
+                class="shrink-0 flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg text-sm font-bold transition-all hover:scale-105 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30">
                 KELUAR
               </button>
             </div>

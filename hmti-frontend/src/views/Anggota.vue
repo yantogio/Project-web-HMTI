@@ -526,10 +526,10 @@ watch(isDarkMode, async () => {
                 </th>
                 <th :class="['px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">NIA</th>
                 <th :class="['px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Nama</th>
-                <th :class="['px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">NPM</th>
-                <th :class="['px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Jabatan</th>
-                <th :class="['px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Role</th>
-                <th :class="['px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Angkatan</th>
+                <th :class="['hidden md:table-cell px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">NPM</th>
+                <th :class="['hidden md:table-cell px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Jabatan</th>
+                <th :class="['hidden md:table-cell px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Role</th>
+                <th :class="['hidden md:table-cell px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Angkatan</th>
               </tr>
             </thead>
             <tbody :class="themeClasses.tableBody">
@@ -614,8 +614,8 @@ watch(isDarkMode, async () => {
                 </td>
                 <td class="px-6 py-5 font-medium text-sm text-slate-800">{{ member.nia }}</td>
                 <td class="px-6 py-5 font-semibold text-sm text-slate-900">{{ member.name }}</td>
-                <td class="px-6 py-5 text-sm text-slate-700">{{ member.npm }}</td>
-                <td class="px-6 py-5 text-sm">
+                <td class="hidden md:table-cell px-6 py-5 text-sm text-slate-700">{{ member.npm }}</td>
+                <td class="hidden md:table-cell px-6 py-5 text-sm">
                   <span
                     :class="member.status === 'Aktif'
                       ? 'bg-blue-200 text-blue-800'
@@ -624,8 +624,8 @@ watch(isDarkMode, async () => {
                     {{ member.jabatan }}
                   </span>
                 </td>
-                <td class="px-6 py-5 text-sm capitalize font-medium text-slate-800">{{ member.role }}</td>
-                <td class="px-6 py-5 text-sm text-slate-700">{{ member.angkatan }}</td>
+                <td class="hidden md:table-cell px-6 py-5 text-sm capitalize font-medium text-slate-800">{{ member.role }}</td>
+                <td class="hidden md:table-cell px-6 py-5 text-sm text-slate-700">{{ member.angkatan }}</td>
               </tr>
 
               <!-- COLOSPAN DINAMIS: SEKARANG SELALU 7 KOLOM -->
@@ -664,14 +664,14 @@ watch(isDarkMode, async () => {
 
     <!-- MODAL IMPORT EXCEL -->
     <Transition name="modal-overlay-fade">
-      <div v-if="isImportModalOpen" class="fixed inset-0 z-50" role="dialog" aria-modal="true">
+      <div v-if="isImportModalOpen" class="fixed inset-0 z-[100]" role="dialog" aria-modal="true">
         <div class="fixed inset-0 flex items-center justify-center p-4">
           <div :class="['absolute inset-0 backdrop-blur-sm', isDarkMode ? 'bg-slate-950/80' : 'bg-slate-900/50']" @click="closeImportModal"></div>
 
-          <div :class="['relative w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl border', themeClasses.modalContent]">
+          <div :class="['relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl border', themeClasses.modalContent]">
 
             <!-- Header -->
-            <div class="relative bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-6 py-5 overflow-hidden">
+            <div class="relative shrink-0 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-6 py-5 overflow-hidden">
               <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
               <div class="relative flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -695,7 +695,7 @@ watch(isDarkMode, async () => {
             </div>
 
             <!-- Body -->
-            <div :class="['px-6 py-6', themeClasses.modalForm]">
+            <div :class="['px-6 py-6 flex-1 overflow-y-auto', themeClasses.modalForm]">
 
               <!-- LANGKAH 1: Pilih file (saat belum ada hasil) -->
               <div v-if="importResult === null">
@@ -780,17 +780,17 @@ watch(isDarkMode, async () => {
 
     <!-- MODAL POP-UP -->
     <Transition name="modal-overlay-fade">
-      <div v-if="isModalOpen" class="fixed inset-0 z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div v-if="isModalOpen" class="fixed inset-0 z-[100]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="fixed inset-0 flex items-center justify-center p-4">
           <div :class="['absolute inset-0 backdrop-blur-sm', isDarkMode ? 'bg-slate-950/80' : 'bg-slate-900/50']" @click="closeModal"></div>
 
           <Transition name="modal-card-pop">
             <div
               v-if="isModalOpen"
-              :class="['relative w-full max-w-2xl rounded-2xl text-left overflow-hidden shadow-2xl border', themeClasses.modalContent]"
+              :class="['relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl text-left overflow-hidden shadow-2xl border', themeClasses.modalContent]"
             >
               <!-- Header gradient -->
-              <div class="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-6 py-5 overflow-hidden">
+              <div class="relative shrink-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 px-6 py-5 overflow-hidden">
                 <div class="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
                 <div class="absolute -bottom-4 left-10 w-16 h-16 bg-white/5 rounded-full blur-lg pointer-events-none"></div>
                 <div class="relative flex items-center justify-between">
@@ -820,7 +820,7 @@ watch(isDarkMode, async () => {
               </div>
 
               <!-- Form body -->
-              <div :class="['px-6 py-6', themeClasses.modalForm]">
+              <div :class="['px-6 py-6 flex-1 overflow-y-auto', themeClasses.modalForm]">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label :class="['block text-xs font-bold uppercase tracking-wider mb-2', themeClasses.modalLabel]">
@@ -917,7 +917,7 @@ watch(isDarkMode, async () => {
               </div>
 
               <!-- Footer -->
-              <div :class="['px-6 py-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 border-t', themeClasses.modalFooter]">
+              <div :class="['shrink-0 px-6 py-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 border-t', themeClasses.modalFooter]">
                 <button type="button" @click="closeModal"
                   :class="['inline-flex justify-center items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-medium focus:outline-none transition-all duration-150', themeClasses.modalCancel]">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

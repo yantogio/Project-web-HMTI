@@ -25,7 +25,12 @@
       "Bash(curl -s -w '\\\\nHTTP=%{http_code}\\\\n' -X DELETE -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuaWEiOiJ0ZXN0MTIzIiwicm9sZSI6ImtldHVtIiwiaWF0IjoxNzgzNDM0NjM0LCJleHAiOjE3ODM0MzQ5MzR9.ghwdNGeY15h-ZAf326ViuI2wFQNfIMqMaddtu_mfSJw' http://localhost:3999/showcase/22)",
       "Bash(ssh -o BatchMode=yes -o ConnectTimeout=8 root@163.61.58.127 \"echo SSH_OK\")",
       "Bash(ssh -o BatchMode=yes -o ConnectTimeout=8 deploy@163.61.58.127 \"echo SSH_OK\")",
-      "Read(//c/Users/HP/.ssh/**)"
+      "Read(//c/Users/HP/.ssh/**)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('INSTRUCTION:\\\\n',d['instruction']\\); print\\('\\\\nTEMPLATE:\\\\n',d['template']\\); print\\('\\\\nDEPS:',d.get\\('dependencies'\\)\\); print\\('OUTPUT:',d.get\\('resolvedOutputPath'\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('INSTRUCTION:\\\\n',d['instruction']\\); print\\('\\\\nTEMPLATE:\\\\n',d['template']\\)\")",
+      "Bash(openspec validate *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('STATE:',d.get\\('state'\\)\\); print\\('PROGRESS:',d.get\\('progress'\\)\\); print\\('CONTEXT FILES:',json.dumps\\(d.get\\('contextFiles'\\),indent=2\\)\\); print\\('ACTION:',json.dumps\\(d.get\\('actionContext',{}\\),indent=2\\)[:400]\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('MODE:',d.get\\('actionContext',{}\\).get\\('mode'\\)\\); print\\('COMPLETE:',d.get\\('isComplete'\\)\\); print\\('ARTIFACTS:',[\\(a['id'],a['status']\\) for a in d.get\\('artifacts',[]\\)]\\); print\\('SPEC PATHS:',json.dumps\\(d.get\\('artifactPaths',{}\\).get\\('specs',{}\\).get\\('existingOutputPaths'\\),indent=2\\)\\); print\\('CHANGES DIR:',d.get\\('planningHome',{}\\).get\\('changesDir'\\)\\); print\\('CHANGE ROOT:',d.get\\('changeRoot'\\)\\)\")"
     ]
   }
 }

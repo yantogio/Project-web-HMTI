@@ -131,7 +131,7 @@ const navClass = computed(() => {
   return ['sticky top-0 z-40 shadow-2xl rounded-b-2xl mb-8 transition-all duration-300 border-b', glass]
 })
 
-const navHeight = computed(() => props.variant === 'flat' ? 'h-20' : 'h-16')
+const navHeight = computed(() => props.variant === 'flat' ? 'md:h-20' : 'md:h-16')
 const contentClasses = computed(() => [
   'relative z-10',
   isDarkMode.value ? 'text-white' : 'text-slate-900',
@@ -236,37 +236,45 @@ onMounted(() => {
 
     <nav :class="navClass">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div :class="['flex items-center justify-between', navHeight]">
-          <div class="flex items-center gap-3 min-w-0">
+        <div :class="['flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-2.5 md:py-0', navHeight]">
+          <div class="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
               @click="goBackToMenu"
-              :class="['shrink-0 transition-colors', isDarkMode ? 'text-blue-200 hover:text-white' : 'text-primary-blue hover:text-primary-blue-dark']"
+              :class="[
+                'shrink-0 p-2 rounded-full transition-all duration-300 hover:scale-110',
+                isDarkMode
+                  ? 'bg-white/10 text-blue-200 hover:bg-white/20 hover:text-white'
+                  : 'bg-amber-100 text-primary-blue hover:bg-amber-200 border border-amber-200'
+              ]"
+              title="Kembali ke menu admin"
               aria-label="Kembali ke menu admin"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M10 19l-7-7m0 0l7-7m7 7V5a3 3 0 01-3 3h-4M3 8h4a3 3 0 013 3v8a3 3 0 01-3 3h-4a3 3 0 01-3-3V8z"
-                />
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
 
             <BrandLogo
+              class="md:hidden"
+              size="sm"
+              :isDarkMode="isDarkMode"
+              :subtitle="section"
+            />
+            <BrandLogo
+              class="hidden md:flex"
               size="md"
               :isDarkMode="isDarkMode"
               :subtitle="section"
             />
           </div>
 
-          <div class="flex items-center gap-4">
+          <div class="flex items-center justify-end gap-2 sm:gap-4 shrink-0">
             <button
               type="button"
               @click="themeStore.toggleTheme()"
               :class="[
-                'p-2 rounded-full transition-all duration-300 hover:scale-110',
+                'shrink-0 p-2 rounded-full transition-all duration-300 hover:scale-110',
                 isDarkMode ? 'bg-white/10 text-yellow-400 hover:bg-white/20' : 'bg-amber-100 text-stone-600 hover:bg-amber-200 border border-amber-200'
               ]"
               title="Ganti Tema"
@@ -280,11 +288,11 @@ onMounted(() => {
               </svg>
             </button>
 
-            <div class="hidden md:block text-right">
-              <div :class="['text-sm font-bold', isDarkMode ? 'text-white' : 'text-stone-900']">
+            <div class="text-right min-w-0">
+              <div :class="['text-xs sm:text-sm font-bold truncate', isDarkMode ? 'text-white' : 'text-stone-900']">
                 {{ authStore.user ? authStore.user.name : 'User' }}
               </div>
-              <div :class="['text-xs capitalize', isDarkMode ? 'text-blue-200/60' : 'text-stone-500']">
+              <div :class="['text-[10px] sm:text-xs capitalize truncate', isDarkMode ? 'text-blue-200/60' : 'text-stone-500']">
                 {{ authStore.user ? authStore.user.role : 'Guest' }}
               </div>
             </div>
@@ -292,7 +300,7 @@ onMounted(() => {
             <button
               type="button"
               @click="handleLogout"
-              class="bg-red-500/80 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all"
+              class="shrink-0 bg-red-500/80 hover:bg-red-500 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-bold transition-all"
             >
               KELUAR
             </button>

@@ -179,6 +179,27 @@ const generateDues = () => {
   isGenerateModalOpen.value = true
 }
 
+// Buka bukti transaksi — dipakai agar SELURUH baris (bukan hanya ikon) merespons tap di mobile.
+const openProof = (t) => {
+  if (t?.proofUrl && t.proofUrl.startsWith('https://')) {
+    window.open(t.proofUrl, '_blank', 'noopener,noreferrer')
+  }
+}
+
+// Menutup modal generate + memaksa repaint.
+// Tanpa nudge scroll ini, overlay backdrop-blur bisa meninggalkan layer usang
+// sehingga tombol "Buat Tagihan Bulan Ini" tak dapat diklik lagi sampai halaman di-scroll manual.
+const closeGenerateModal = () => {
+  isGenerateModalOpen.value = false
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      const y = window.scrollY
+      window.scrollTo(0, y + 1)
+      window.scrollTo(0, y)
+    })
+  })
+}
+
 const confirmGenerateDues = async () => {
   const periodInput = generatePeriodInput.value.trim()
   if (!periodInput) return
@@ -194,7 +215,7 @@ const confirmGenerateDues = async () => {
     })
 
     toastSuccess('Tagihan berhasil dibuat untuk semua anggota aktif!')
-    isGenerateModalOpen.value = false
+    closeGenerateModal()
     fetchDuesList()
     fetchDuesSummary()
     fetchTransactions()
@@ -1071,7 +1092,8 @@ onUnmounted(() => {
                 :href="t.proofUrl.startsWith('https://') ? t.proofUrl : '#'"
                 target="_blank"
                 rel="noopener noreferrer"
-                :class="['flex items-center gap-3 p-3 rounded-xl border transition-all hover:translate-x-1 group cursor-pointer no-underline', themeClasses.cardContent,
+                @click.prevent="openProof(t)"
+                :class="['flex w-full min-h-[44px] items-center gap-3 p-3 rounded-xl border transition-all hover:translate-x-1 group cursor-pointer no-underline', themeClasses.cardContent,
                   isDarkMode ? 'hover:border-indigo-400/40' : 'hover:border-indigo-300 hover:shadow-sm']">
                 <div class="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
                   :class="isDarkMode ? 'bg-indigo-500/20' : 'bg-indigo-100'">
@@ -1084,9 +1106,14 @@ onUnmounted(() => {
                   <p :class="['font-semibold text-xs truncate', themeClasses.text]">{{ t.category }} — {{ t.description }}</p>
                   <p :class="['text-[10px] mt-0.5', themeClasses.textMuted]">{{ formatDate(t.date) }}</p>
                 </div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 transition flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                </svg>
+                <div
+                  class="flex-shrink-0 flex items-center justify-center transition w-9 h-9 rounded-lg sm:w-auto sm:h-auto sm:rounded-none"
+                  :class="isDarkMode ? 'bg-indigo-500/15 sm:bg-transparent' : 'bg-indigo-50 sm:bg-transparent'"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-3.5 sm:w-3.5 text-indigo-400 sm:text-current opacity-90 sm:opacity-40 group-hover:opacity-100 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                  </svg>
+                </div>
               </a>
             </div>
           </div>
@@ -1250,13 +1277,13 @@ onUnmounted(() => {
 
     <!-- MODAL GENERATE TAGIHAN -->
     <div v-if="isGenerateModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="isGenerateModalOpen = false"></div>
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeGenerateModal"></div>
       <div :class="['relative w-full max-w-sm rounded-2xl shadow-2xl p-6 overflow-hidden',
         isDarkMode ? 'bg-slate-800 border border-white/10 text-white' : 'bg-white border border-slate-200 text-slate-900']">
 
         <div class="flex justify-between items-center mb-5">
           <h3 class="text-lg font-bold">Buat Tagihan Iuran</h3>
-          <button @click="isGenerateModalOpen = false" :class="['opacity-50 hover:opacity-100 transition-opacity', isDarkMode ? 'text-white' : 'text-slate-700']">✕</button>
+          <button @click="closeGenerateModal" :class="['opacity-50 hover:opacity-100 transition-opacity', isDarkMode ? 'text-white' : 'text-slate-700']">✕</button>
         </div>
 
         <div class="space-y-4">
@@ -1271,7 +1298,7 @@ onUnmounted(() => {
           </div>
 
           <div class="flex gap-3 pt-2">
-            <button @click="isGenerateModalOpen = false"
+            <button @click="closeGenerateModal"
               :class="['flex-1 px-4 py-2.5 rounded-xl font-semibold text-sm border transition-all', isDarkMode ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50']">
               Batal
             </button>

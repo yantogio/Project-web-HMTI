@@ -294,9 +294,9 @@ const getPlaceholderImage = (mimeType) => {
       </div>
 
       <!-- TAB NAVIGATION -->
-      <div class="scroll-reveal flex gap-4 mb-8 overflow-x-auto pb-2 no-scrollbar">
+      <div class="scroll-reveal grid grid-cols-3 sm:flex gap-2 sm:gap-4 mb-8 sm:overflow-x-auto pb-2 no-scrollbar">
         <button @click="activeTab = 'surat'"
-          :class="['px-6 py-3 rounded-xl font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-2', activeTab === 'surat' ? themeClasses.tabActive : themeClasses.tabInactive]">
+          :class="['px-2 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold transition-all duration-300 flex flex-col sm:flex-row items-center justify-center text-center gap-1 sm:gap-2 text-xs sm:text-base', activeTab === 'surat' ? themeClasses.tabActive : themeClasses.tabInactive]">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -304,7 +304,7 @@ const getPlaceholderImage = (mimeType) => {
           Arsip Surat
         </button>
         <button @click="activeTab = 'media'"
-          :class="['px-6 py-3 rounded-xl font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-2', activeTab === 'media' ? themeClasses.tabActive : themeClasses.tabInactive]">
+          :class="['px-2 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold transition-all duration-300 flex flex-col sm:flex-row items-center justify-center text-center gap-1 sm:gap-2 text-xs sm:text-base', activeTab === 'media' ? themeClasses.tabActive : themeClasses.tabInactive]">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -312,7 +312,7 @@ const getPlaceholderImage = (mimeType) => {
           Media Event
         </button>
         <button @click="activeTab = 'branding'"
-          :class="['px-6 py-3 rounded-xl font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-2', activeTab === 'branding' ? themeClasses.tabActive : themeClasses.tabInactive]">
+          :class="['px-2 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold transition-all duration-300 flex flex-col sm:flex-row items-center justify-center text-center gap-1 sm:gap-2 text-xs sm:text-base', activeTab === 'branding' ? themeClasses.tabActive : themeClasses.tabInactive]">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
               d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
@@ -349,21 +349,22 @@ const getPlaceholderImage = (mimeType) => {
         </div>
 
         <div :class="['rounded-2xl overflow-hidden border animate-fade-in', themeClasses.cardGlass]">
-          <table class="w-full text-left">
+          <div class="overflow-x-auto">
+          <table class="min-w-full text-left">
             <thead :class="['text-xs font-bold uppercase tracking-wider', themeClasses.tableHead]">
               <tr>
-                <th class="px-6 py-4">No. Surat</th>
-                <th class="px-6 py-4">Judul</th>
-                <th class="px-6 py-4">Tanggal</th>
-                <th class="px-6 py-4">Pengirim/Tipe</th>
-                <th class="px-6 py-4 text-right">Aksi</th>
+                <th class="hidden md:table-cell px-6 py-4">No. Surat</th>
+                <th class="px-4 sm:px-6 py-4">Judul</th>
+                <th class="px-4 sm:px-6 py-4">Tanggal</th>
+                <th class="hidden md:table-cell px-6 py-4">Pengirim/Tipe</th>
+                <th class="px-4 sm:px-6 py-4 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody :class="['text-sm', themeClasses.text]">
               <tr v-for="(l, index) in suratDocs" :key="l.id"
                 :class="['transition duration-150', themeClasses.tableRow]">
-                <td class="px-6 py-4 font-medium">{{ index + 1 }}</td>
-                <td class="px-6 py-4">
+                <td class="hidden md:table-cell px-6 py-4 font-medium">{{ index + 1 }}</td>
+                <td class="px-4 sm:px-6 py-4">
                   <div class="font-bold">{{ l.title }}</div>
                   <div v-if="!l.driveFileId" class="flex items-center text-yellow-500 text-[10px] mt-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 mr-1" viewBox="0 0 20 20" fill="currentColor">
@@ -372,13 +373,13 @@ const getPlaceholderImage = (mimeType) => {
                     ID Drive Hilang
                   </div>
                 </td>
-                <td class="px-6 py-4">{{ new Date(l.uploadDate).toLocaleDateString('id-ID') }}</td>
-                <td class="px-6 py-4">
+                <td class="px-4 sm:px-6 py-4 whitespace-nowrap">{{ new Date(l.uploadDate).toLocaleDateString('id-ID') }}</td>
+                <td class="hidden md:table-cell px-6 py-4">
                   <span :class="['px-2 py-1 rounded-md text-[10px] font-bold uppercase', isDarkMode ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700']">
                     {{ l.uploader?.name || 'Sekretaris' }}
                   </span>
                 </td>
-                <td class="px-6 py-4 text-right">
+                <td class="px-4 sm:px-6 py-4 text-right">
                   <div class="flex justify-end items-center gap-1">
                     <!-- Preview (PDF/DOCX/PPT/PPTX/XLS/XLSX → Google Drive; others → modal) -->
                     <button @click="isDrivePreviewable(l.category) ? openGoogleDrivePreview(l) : openPreview(l)"
@@ -411,6 +412,7 @@ const getPlaceholderImage = (mimeType) => {
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
