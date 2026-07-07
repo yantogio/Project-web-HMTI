@@ -1,14 +1,14 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import http, { API_BASE_URL } from '@/api/http'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import AdminPageLayout from '../components/AdminPageLayout.vue'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
-const BASE = 'http://localhost:3000'
+const BASE = API_BASE_URL
 // Pola sama seperti getDocPreviewUrl di ShowcaseHub — gunakan identifier (NIA), bukan URL tersimpan
 const getAvatarUrl = (nia, avatarUrl) => {
   if (!avatarUrl || !nia) return null
@@ -127,7 +127,7 @@ const newMember = ref({
 // Fetch Data
 const fetchMembers = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/members')
+    const response = await http.get('/members')
     members.value = response.data
   } catch (error) {
     console.error('Gagal ambil data:', error)
@@ -194,10 +194,10 @@ const saveMember = async () => {
       return
     }
     if (isEditing.value) {
-      await axios.patch(`http://localhost:3000/members/${editingNia.value}`, newMember.value)
+      await http.patch(`/members/${editingNia.value}`, newMember.value)
       toastSuccess('Data anggota berhasil diperbarui!')
     } else {
-      await axios.post('http://localhost:3000/members', newMember.value)
+      await http.post('/members', newMember.value)
       toastSuccess('Anggota baru berhasil ditambahkan!')
     }
     closeModal()
@@ -221,7 +221,7 @@ const deleteMember = async (nia) => {
   const ok = await confirmDialog('Apakah kamu yakin ingin menghapus anggota ini?')
   if (ok) {
     try {
-      await axios.delete(`http://localhost:3000/members/${nia}`)
+      await http.delete(`/members/${nia}`)
       toastSuccess('Anggota berhasil dihapus.')
       await fetchMembers()
     } catch (error) {
@@ -307,7 +307,7 @@ const submitImport = async () => {
   try {
     const fd = new FormData()
     fd.append('file', importFile.value)
-    const res = await axios.post('http://localhost:3000/members/import', fd, {
+    const res = await http.post('/members/import', fd, {
       headers: {
         Authorization: `Bearer ${authStore.token}`,
         'Content-Type': 'multipart/form-data'
@@ -327,7 +327,7 @@ const submitImport = async () => {
 
 const downloadTemplate = async () => {
   try {
-    const res = await axios.get('http://localhost:3000/members/import-template', {
+    const res = await http.get('/members/import-template', {
       headers: { Authorization: `Bearer ${authStore.token}` },
       responseType: 'blob'
     })

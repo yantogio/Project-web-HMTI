@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { API_BASE_URL } from './http';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: API_BASE_URL,
 });
 
 // INTERCEPTOR: Ini buat nempelin "KTP" otomatis tiap kali upload

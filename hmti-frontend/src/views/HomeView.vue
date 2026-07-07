@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import http, { API_BASE_URL } from '@/api/http'
 import { useThemeStore } from '../stores/theme'
 import AnimatedBackground from '../components/AnimatedBackground.vue'
 import BrandLogo from '../components/BrandLogo.vue'
@@ -10,7 +10,7 @@ const router = useRouter()
 const themeStore = useThemeStore()
 const isDarkMode = computed(() => themeStore.isDarkMode)
 
-const BASE = 'http://localhost:3000'
+const BASE = API_BASE_URL
 // Pola sama seperti getDocPreviewUrl di ShowcaseHub — gunakan NIA sebagai identifier
 const getAvatarUrl = (nia, avatarUrl) => {
   if (!avatarUrl || !nia) return null
@@ -145,7 +145,7 @@ const setupStatsObserver = () => {
 
 const getDocMediaUrl = (documentId) => {
   if (!documentId) return null
-  return `http://localhost:3000/documents/preview/${documentId}`
+  return `${BASE}/documents/preview/${documentId}`
 }
 
 // --- PREVIEW MODAL STATE ---
@@ -205,7 +205,7 @@ const formatDate = (dateTime) => {
 
 const fetchShowcaseActive = async () => {
   try {
-    const res = await axios.get('http://localhost:3000/showcase/active')
+    const res = await http.get('/showcase/active')
     const all = res.data
     activities.value = all.filter(i => i.category === 'kegiatan')
     events.value = all.filter(i => i.category === 'event')
@@ -218,7 +218,7 @@ const fetchShowcaseActive = async () => {
 const fetchOfficers = async () => {
   try {
     isLoading.value = true
-    const response = await axios.get('http://localhost:3000/members')
+    const response = await http.get('/members')
     const all = response.data
 
     // Total anggota dari database

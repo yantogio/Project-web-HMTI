@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import AdminPageLayout from '../components/AdminPageLayout.vue'
 import { uploadDocument, getDocuments, deleteDocument } from '../api/documentApi'
+import { API_BASE_URL } from '@/api/http'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
@@ -176,12 +177,10 @@ const deleteDoc = async (id) => {
   }
 }
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
-
 const getDocumentUrl = (doc, action = 'preview') => {
   if (!doc?.id) return doc.fileUrl
   const endpoint = action === 'download' ? 'download' : 'preview'
-  return `${apiBaseUrl}/documents/${endpoint}/${doc.id}`
+  return `${API_BASE_URL}/documents/${endpoint}/${doc.id}`
 }
 
 const isImage = (mimeType) => mimeType?.startsWith('image/')

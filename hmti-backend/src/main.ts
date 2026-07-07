@@ -52,7 +52,10 @@ async function bootstrap() {
         return callback(null, true);
       }
 
-      return callback(new Error(`Origin ${origin} is not allowed by CORS`), false);
+      // Tolak tanpa melempar Error: respons tetap normal tanpa header CORS
+      // (browser yang memblokir), bukan 500 yang menyamarkan penyebabnya.
+      console.warn(`[CORS] Origin ditolak: ${origin}`);
+      return callback(null, false);
     },
     credentials: true,
   });

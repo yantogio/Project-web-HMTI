@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import AnimatedBackground from '../components/AnimatedBackground.vue'
 import BrandLogo from '../components/BrandLogo.vue'
-import axios from 'axios'
+import http from '@/api/http'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -143,7 +143,7 @@ const openKetumWhatsapp = () => {
 
 const fetchKetum = async () => {
   try {
-    const res = await axios.get('http://localhost:3000/members')
+    const res = await http.get('/members')
     const candidates = res.data
       .filter(m => m.role === 'ketum' && m.status === 'Aktif' && m.phone)
       .sort((a, b) => new Date(b.joinedAt) - new Date(a.joinedAt))

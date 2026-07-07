@@ -6,7 +6,7 @@ import { useThemeStore } from '../stores/theme'
 import SpeedDialNav from './SpeedDialNav.vue'
 import AnimatedBackground from './AnimatedBackground.vue'
 import BrandLogo from './BrandLogo.vue'
-import axios from 'axios'
+import http from '@/api/http'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
@@ -189,7 +189,7 @@ const checkGenerateStatus = async () => {
 
   try {
     const period = getCurrentPeriod()
-    const res = await axios.get('http://localhost:3000/finance/generate-status', {
+    const res = await http.get('/finance/generate-status', {
       params: { period },
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
@@ -210,7 +210,7 @@ const generateFromBanner = async () => {
   try {
     const period = getCurrentPeriod()
     const [year, month] = period.split('-').map(Number)
-    await axios.post('http://localhost:3000/finance/generate-dues', {
+    await http.post('/finance/generate-dues', {
       period, month, year
     }, {
       headers: { Authorization: `Bearer ${authStore.token}` }

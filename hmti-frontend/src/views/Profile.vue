@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import AdminPageLayout from '../components/AdminPageLayout.vue'
-import axios from 'axios' // 1. Import Axios
+import http, { API_BASE_URL } from '@/api/http'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -14,7 +14,7 @@ const themeStore = useThemeStore()
 const isDarkMode = computed(() => themeStore.isDarkMode)
 const activeTab = ref('info')
 
-const BASE = 'http://localhost:3000'
+const BASE = API_BASE_URL
 
 // Form Data Pribadi (KOSONG DI AWAL, NANTI DIISI DARI DATABASE)
 const profileData = ref({
@@ -90,7 +90,7 @@ const themeClasses = computed(() => {
 // Ambil data saat halaman dibuka
 const fetchMyProfile = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/members/me', {
+    const response = await http.get('/members/me', {
       headers: {
         Authorization: `Bearer ${authStore.token}`
       }
@@ -116,7 +116,7 @@ const fetchMyProfile = async () => {
 const saveProfile = async () => {
   try {
     // Backend updateProfile hanya menerima email, phone, bio (Nama & Role biasanya diatur Admin)
-    await axios.patch('http://localhost:3000/members/me', {
+    await http.patch('/members/me', {
       email: profileData.value.email,
       phone: profileData.value.phone,
       bio: profileData.value.bio
@@ -154,7 +154,7 @@ const changePassword = async () => {
   }
 
   try {
-    await axios.patch('http://localhost:3000/members/me/password', {
+    await http.patch('/members/me/password', {
       currentPassword: passwordData.value.currentPassword,
       newPassword: passwordData.value.newPassword
     }, {
@@ -207,7 +207,7 @@ const handleAvatarUpload = async (event) => {
   formData.append('avatar', file)
 
   try {
-    const response = await axios.patch('http://localhost:3000/members/me/avatar', formData, {
+    const response = await http.patch('/members/me/avatar', formData, {
       headers: {
         Authorization: `Bearer ${authStore.token}`,
         'Content-Type': 'multipart/form-data'

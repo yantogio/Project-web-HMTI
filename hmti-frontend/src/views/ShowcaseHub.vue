@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import AdminPageLayout from '../components/AdminPageLayout.vue'
-import axios from 'axios'
+import http, { API_BASE_URL } from '@/api/http'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
@@ -14,7 +14,7 @@ const themeStore = useThemeStore()
 const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
 const { confirm: confirmDialog } = useConfirm()
 
-const BASE = 'http://localhost:3000'
+const BASE = API_BASE_URL
 const authHeader = computed(() => ({ Authorization: `Bearer ${authStore.token}` }))
 
 // --- STATE ---
@@ -117,7 +117,7 @@ const formatDate = (dt) => {
 const fetchItems = async () => {
   isLoading.value = true
   try {
-    const res = await axios.get(`${BASE}/showcase`, { headers: authHeader.value })
+    const res = await http.get(`/showcase`, { headers: authHeader.value })
     showcaseItems.value = res.data
   } catch (e) {
     toastError('Gagal memuat data showcase.')
@@ -130,7 +130,7 @@ const fetchItems = async () => {
 const fetchGalleryDocs = async () => {
   isLoadingGallery.value = true
   try {
-    const res = await axios.get(`${BASE}/documents?limit=100`, { headers: authHeader.value })
+    const res = await http.get(`/documents?limit=100`, { headers: authHeader.value })
     // findAll mengembalikan { data: [...], pagination: {...} }
     const docs = Array.isArray(res.data) ? res.data : (res.data.data ?? [])
     galleryDocs.value = docs.filter(d =>
@@ -196,7 +196,7 @@ const submitForm = async () => {
     } else if (formData.value.documentId) {
       payload.append('documentId', String(formData.value.documentId))
     }
-    await axios.post(`${BASE}/showcase`, payload, {
+    await http.post(`/showcase`, payload, {
       headers: { ...authHeader.value, 'Content-Type': 'multipart/form-data' }
     })
     toastSuccess('Konten berhasil ditambahkan!')
@@ -213,7 +213,7 @@ const submitForm = async () => {
 // --- ITEM ACTIONS ---
 const togglePin = async (item) => {
   try {
-    const res = await axios.put(`${BASE}/showcase/${item.id}/toggle`, {}, { headers: authHeader.value })
+    const res = await http.put(`/showcase/${item.id}/toggle`, {}, { headers: authHeader.value })
     const idx = showcaseItems.value.findIndex(i => i.id === item.id)
     if (idx !== -1) showcaseItems.value[idx] = res.data
     toastSuccess(res.data.isVisible ? 'Item dipinned ke beranda!' : 'Item disembunyikan dari beranda.')
@@ -226,7 +226,7 @@ const deleteItem = async (item) => {
   const ok = await confirmDialog(`Hapus "${item.title}" dari showcase?`)
   if (!ok) return
   try {
-    await axios.delete(`${BASE}/showcase/${item.id}`, { headers: authHeader.value })
+    await http.delete(`/showcase/${item.id}`, { headers: authHeader.value })
     showcaseItems.value = showcaseItems.value.filter(i => i.id !== item.id)
     toastSuccess('Item berhasil dihapus.')
   } catch (e) {

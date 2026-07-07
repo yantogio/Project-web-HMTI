@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import AdminPageLayout from '../components/AdminPageLayout.vue'
-import axios from 'axios'
+import http from '@/api/http'
 import { useToast } from '../composables/useToast'
 import { useConfirm } from '../composables/useConfirm'
 
@@ -88,7 +88,7 @@ const paymentWarning = ref({ show: false, message: '', amount: 0 })
 // --- 2.1 FUNGSI AMBIL KONFIGURASI (Agar nominal terbaca) ---
 const fetchConfig = async () => {
   try {
-    const res = await axios.get('http://localhost:3000/finance/config', {
+    const res = await http.get('/finance/config', {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
     const data = res.data
@@ -114,7 +114,7 @@ const saveConfig = async () => {
   }
   isSavingConfig.value = true
   try {
-    await axios.post('http://localhost:3000/finance/config', {
+    await http.post('/finance/config', {
       duesAmount: Number(duesAmount) || 0,
       lateFee: Number(lateFee) || 0,
       dueDay: Number(dueDay) || 10,
@@ -137,7 +137,7 @@ const saveConfig = async () => {
 // --- 2.2 FUNGSI AMBIL DAFTAR TAGIHAN (Pagination) ---
 const fetchDuesList = async () => {
   try {
-    const res = await axios.get('http://localhost:3000/dues', {
+    const res = await http.get('/dues', {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
     // Support format { data: [...] } atau array langsung
@@ -150,7 +150,7 @@ const fetchDuesList = async () => {
 
 const fetchDuesSummary = async () => {
   try {
-    const res = await axios.get('http://localhost:3000/dues/summary', {
+    const res = await http.get('/dues/summary', {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
     duesSummaryList.value = Array.isArray(res.data) ? res.data : []
@@ -162,7 +162,7 @@ const fetchDuesSummary = async () => {
 // --- 2.3 FUNGSI TERAPKAN DENDA KETERLAMBATAN (dipanggil otomatis saat page load) ---
 const applyLateFees = async () => {
   try {
-    await axios.post('http://localhost:3000/finance/apply-late-fees', {}, {
+    await http.post('/finance/apply-late-fees', {}, {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
   } catch (e) {
@@ -185,7 +185,7 @@ const confirmGenerateDues = async () => {
 
   try {
     const [year, month] = periodInput.split('-')
-    await axios.post('http://localhost:3000/finance/generate-dues', {
+    await http.post('/finance/generate-dues', {
       period: periodInput,
       month: parseInt(month),
       year: parseInt(year)
@@ -330,7 +330,7 @@ const closeModal = () => {
 // Ambil Data dari Backend
 const fetchTransactions = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/transactions', {
+    const response = await http.get('/transactions', {
       headers: {
         Authorization: `Bearer ${authStore.token}`
       }
@@ -381,7 +381,7 @@ const saveTransaction = async () => {
     }
     if (proofFile.value) fd.append('proof', proofFile.value)
 
-    await axios.post('http://localhost:3000/transactions', fd, {
+    await http.post('/transactions', fd, {
       headers: {
         Authorization: `Bearer ${authStore.token}`,
         'Content-Type': 'multipart/form-data'
@@ -408,7 +408,7 @@ const downloadReport = async (format) => {
   }
   isDownloading.value = true
   try {
-    const res = await axios.get('http://localhost:3000/transactions/report', {
+    const res = await http.get('/transactions/report', {
       params: { from: reportFrom.value, to: reportTo.value, format },
       headers: { Authorization: `Bearer ${authStore.token}` },
       responseType: 'blob'
@@ -433,7 +433,7 @@ const membersList = ref([]) // List anggota untuk dropdown
 const fetchMembers = async () => {
   try {
     // Ambil semua anggota (nanti difilter status Aktif di service frontend biar ringan)
-    const res = await axios.get('http://localhost:3000/members', {
+    const res = await http.get('/members', {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
     // Filter hanya yang aktif
@@ -450,7 +450,7 @@ const checkDuesStatus = async (memberNia) => {
     const today = new Date();
     const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
-    const res = await axios.get('http://localhost:3000/dues/check-status', {
+    const res = await http.get('/dues/check-status', {
       params: { nia: memberNia, period },
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
