@@ -1,3 +1,5 @@
+// Muat .env paling awal agar semua modul (JWT, CORS, dll.) membaca env yang sama
+import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';

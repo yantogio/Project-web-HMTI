@@ -3,6 +3,17 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../prisma/prisma.service';
 
+// Kunci rahasia diambil dari environment; wajib diset agar sign & verify konsisten
+export function requireJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error(
+      'JWT_SECRET belum diset di environment. Isi JWT_SECRET di file .env sebelum menjalankan backend.',
+    );
+  }
+  return secret;
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private prisma: PrismaService) {
@@ -11,8 +22,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       // Tidak mengabaikan token kadaluarsa
       ignoreExpiration: false,
-      // Kunci rahasia harus SAMA PERSIS dengan yang ada di auth.module.ts
-      secretOrKey: 'HMTI_RAHASIA_KEY_JANGAN_DIBAGIKAN',
+      // Kunci rahasia harus SAMA PERSIS dengan yang dipakai saat sign di auth.module.ts
+      secretOrKey: requireJwtSecret(),
     });
   }
 

@@ -17,3 +17,20 @@ push ke github :
 - git add .
 - git commit -m " nama update "
 - git push origin main
+
+kalau mau akses VPS
+ssh root@163.61.58.127
+
+buat update backend di VPS lewat lokal dulu
+cd "c:\PROJECT WEB HMTI\hmti-backend"
+npm run build
+scp -r dist root@163.61.58.127:/var/www/Project-web-HMTI/hmti-backend/
+
+terus ke VPS
+cd /var/www/Project-web-HMTI/hmti-backend
+pm2 restart hmti-backend
+
+kalau mau update frontend di VPS lewat lokal
+cd "c:\PROJECT WEB HMTI\hmti-frontend"
+npm run build
+scp -r dist root@163.61.58.127:/var/www/Project-web-HMTI/hmti-frontend/

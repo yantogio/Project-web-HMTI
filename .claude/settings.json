@@ -2,7 +2,30 @@
   "permissions": {
     "allow": [
       "Bash(netstat -ano)",
-      "Bash(taskkill //PID 13424 //F)"
+      "Bash(taskkill //PID 13424 //F)",
+      "Bash(git fetch *)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d['instruction']\\); print\\('---TEMPLATE---'\\); print\\(d['template']\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(node -e \"console.log\\(require.resolve\\('dotenv'\\)\\)\")",
+      "Bash(DATABASE_URL=\"file:C:/PROJECT WEB HMTI/hmti-backend/prisma/dev.db\" JWT_SECRET= node \"c:/PROJECT WEB HMTI/hmti-backend/dist/main.js\")",
+      "Bash(PORT=3999 node dist/main.js)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3999/api/members/me)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuaWEiOiJ0ZXN0MTIzIiwicm9sZSI6ImtldHVtIiwiaWF0IjoxNzgzNDM0NjM0LCJleHAiOjE3ODM0MzQ5MzR9.ghwdNGeY15h-ZAf326ViuI2wFQNfIMqMaddtu_mfSJw' http://localhost:3999/members/me)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuaWEiOiJ0ZXN0MTIzIiwicm9sZSI6ImtldHVtIiwiaWF0IjoxNzgzNDM0NjM0LCJleHAiOjE3ODM0MzQ5MzR9.ghwdNGeY15h-ZAf326ViuI2wFQNfIMqMaddtu_mfSJw' http://localhost:3999/dues)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}\\\\n' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuaWEiOiJ0ZXN0MTIzIiwicm9sZSI6ImtldHVtIiwiaWF0IjoxNzgzNDM0NjM0LCJleHAiOjE3ODM0MzQ5MzR9.-wZBc7faVovJRJg8oBnJ831eJBVMZ9QByqEpDEoHhiE' http://localhost:3999/members/me)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3999/members/me)",
+      "Bash(curl -s -D - -o /dev/null http://localhost:3999/members/me)",
+      "Bash(curl -s -D - -o /dev/null -H \"Origin: http://localhost:5173\" http://localhost:3999/members/me)",
+      "Bash(curl -s -D - -o /dev/null -H \"Origin: http://evil.com\" http://localhost:3999/members/me)",
+      "Bash(curl -s -w '\\\\nHTTP=%{http_code}\\\\n' -X PUT -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuaWEiOiJ0ZXN0MTIzIiwicm9sZSI6ImtldHVtIiwiaWF0IjoxNzgzNDM0NjM0LCJleHAiOjE3ODM0MzQ5MzR9.ghwdNGeY15h-ZAf326ViuI2wFQNfIMqMaddtu_mfSJw' -H 'Content-Type: application/json' -d '{\"fieldTidakDikenal\":\"x\"}' http://localhost:3999/finance/config)",
+      "Bash(curl -s -w '\\\\nHTTP=%{http_code}\\\\n' -X POST -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuaWEiOiJ0ZXN0MTIzIiwicm9sZSI6ImtldHVtIiwiaWF0IjoxNzgzNDM0NjM0LCJleHAiOjE3ODM0MzQ5MzR9.ghwdNGeY15h-ZAf326ViuI2wFQNfIMqMaddtu_mfSJw' -H 'Content-Type: application/json' -d '{\"title\":\"tes validasi\",\"fieldTidakDikenal\":\"x\"}' http://localhost:3999/showcase)",
+      "Bash(curl -s -w '\\\\nHTTP=%{http_code}\\\\n' -X POST -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Content-Type: application/json' -d '{\"category\":\"event\",\"title\":\"tes validasi\",\"fieldTidakDikenal\":\"x\"}' http://localhost:3999/showcase)",
+      "Bash(curl -s -w '\\\\nHTTP=%{http_code}\\\\n' -X POST -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Content-Type: application/json' -d '{\"category\":\"event\",\"title\":\"tes validasi ok\",\"description\":\"uji dto\"}' http://localhost:3999/showcase)",
+      "Bash(curl -s -w '\\\\nHTTP=%{http_code}\\\\n' -X DELETE -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuaWEiOiJ0ZXN0MTIzIiwicm9sZSI6ImtldHVtIiwiaWF0IjoxNzgzNDM0NjM0LCJleHAiOjE3ODM0MzQ5MzR9.ghwdNGeY15h-ZAf326ViuI2wFQNfIMqMaddtu_mfSJw' http://localhost:3999/showcase/22)",
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=8 root@163.61.58.127 \"echo SSH_OK\")",
+      "Bash(ssh -o BatchMode=yes -o ConnectTimeout=8 deploy@163.61.58.127 \"echo SSH_OK\")",
+      "Read(//c/Users/HP/.ssh/**)"
     ]
   }
 }

@@ -25,9 +25,9 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run backend install/build checks after dependency and bootstrap changes.
-- [ ] 4.2 Verify allowed and rejected CORS origin behavior.
-- [ ] 4.3 Verify unknown payload fields are rejected by global validation on a DTO-backed endpoint.
-- [ ] 4.4 Verify Helmet headers are present on backend responses.
-- [ ] 4.5 Verify deployment documentation commands are internally consistent for the selected VPS layout.
-- [ ] 4.6 Run `openspec status --change "harden-production-deployment"` and confirm the change is apply-ready.
+- [x] 4.1 Run backend install/build checks after dependency and bootstrap changes.
+- [x] 4.2 Verify allowed and rejected CORS origin behavior.
+- [x] 4.3 Verify unknown payload fields are rejected by global validation on a DTO-backed endpoint.
+- [x] 4.4 Verify Helmet headers are present on backend responses.
+- [x] 4.5 Verify deployment documentation commands are internally consistent for the selected VPS layout.
+- [x] 4.6 Run `openspec status --change "harden-production-deployment"` and confirm the change is apply-ready.

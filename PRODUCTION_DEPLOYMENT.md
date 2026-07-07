@@ -248,3 +248,21 @@ Expected results:
 - Swap shows a 2 GB `/swapfile`.
 - HTTPS responses include Helmet security headers such as `X-Content-Type-Options`.
 - Allowed frontend origins receive matching CORS headers; unknown origins do not.
+
+### Auth verification (wajib setiap deploy)
+
+Token dari login harus diterima oleh endpoint ber-guard. Ini memastikan kunci sign dan verify JWT konsisten (keduanya dari `JWT_SECRET`):
+
+```bash
+# 1. Login dan ambil access_token
+TOKEN=$(curl -s -X POST https://your-api-domain.example/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"nia":"<nia-valid>","password":"<password>"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
+
+# 2. Panggil endpoint ber-guard — harus HTTP 200, bukan 401
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -H "Authorization: Bearer $TOKEN" \
+  https://your-api-domain.example/api/members/me
+```
+
+Jika hasilnya 401: pastikan `JWT_SECRET` terisi di `.env`, backend sudah di-`npm run build` ulang, dan `pm2 restart hmti-backend --update-env` sudah dijalankan. Setelah mengganti `JWT_SECRET`, semua user wajib login ulang.
