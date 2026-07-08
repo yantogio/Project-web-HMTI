@@ -9,4 +9,16 @@ const http = axios.create({
   baseURL: API_BASE_URL,
 })
 
+// Lampirkan token JWT ke setiap request secara otomatis.
+// Sumber kebenaran token = localStorage ('access_token', lihat stores/auth.js)
+// agar endpoint terproteksi (mis. PATCH/DELETE /members) tidak balik 401.
+http.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token')
+  if (token) {
+    config.headers = config.headers || {}
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 export default http

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { GoogleDriveService } from '../documents/google-drive.service';
+import { UpdateMemberDto } from './dto/update-member.dto';
 import * as ExcelJS from 'exceljs';
 
 @Injectable()
@@ -20,8 +21,8 @@ export class MembersService {
     return this.prisma.member.findMany();
   }
 
-  // Fungsi Update
-  async update(nia: string, data: any) {
+  // Fungsi Update — data sudah divalidasi & di-whitelist oleh UpdateMemberDto
+  async update(nia: string, data: UpdateMemberDto) {
     return this.prisma.member.update({
       where: { nia }, // Cari anggota berdasarkan NIA
       data,           // Ganti datanya

@@ -334,7 +334,7 @@ watch(isDarkMode, async () => {
       isDarkMode ? 'bg-slate-900/60 backdrop-blur-xl border-b border-white/10' : 'bg-cream-light/90 backdrop-blur-xl border-b border-amber-200 shadow-sm'
     ]">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex flex-col md:flex-row md:justify-between gap-2 py-2.5 md:py-0 md:h-18 md:items-center">
+        <div class="flex flex-col md:flex-row md:justify-between gap-2 py-2.5 md:py-0 md:h-24 md:items-center">
 
           <!-- Logo (kecil di mobile, normal di desktop) -->
           <div

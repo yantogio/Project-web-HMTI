@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, 
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MembersService } from './members.service';
+import { UpdateMemberDto } from './dto/update-member.dto';
 import { Roles } from '../decorators/roles.decorator';
 import { RolesGuard } from '../guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -128,7 +129,7 @@ export class MembersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ketum', 'sekretaris', 'bendahara')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() data: any) {
+  update(@Param('id') id: string, @Body() data: UpdateMemberDto) {
     return this.membersService.update(id, data);
   }
 

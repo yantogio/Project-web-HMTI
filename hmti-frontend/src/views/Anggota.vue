@@ -194,7 +194,10 @@ const saveMember = async () => {
       return
     }
     if (isEditing.value) {
-      await http.patch(`/members/${editingNia.value}`, newMember.value)
+      // NIA adalah primary key (tidak diubah saat edit) → kirim hanya field
+      // yang boleh diperbarui. Jangan sertakan nia / field server-managed.
+      const { nia, ...updateData } = newMember.value
+      await http.patch(`/members/${editingNia.value}`, updateData)
       toastSuccess('Data anggota berhasil diperbarui!')
     } else {
       await http.post('/members', newMember.value)
@@ -211,7 +214,18 @@ const saveMember = async () => {
 }
 
 const editMember = (member) => {
-  newMember.value = { ...member }
+  // Ambil HANYA field yang boleh diedit. Menyalin seluruh objek member
+  // (termasuk password, joinedAt, avatarUrl, dsb.) membuat request PATCH
+  // ditolak oleh Prisma/validasi backend.
+  newMember.value = {
+    nia: member.nia,
+    npm: member.npm ?? '',
+    name: member.name ?? '',
+    angkatan: member.angkatan ?? '',
+    jabatan: member.jabatan ?? '',
+    role: member.role ?? '',
+    status: member.status ?? 'Aktif',
+  }
   isEditing.value = true
   editingNia.value = member.nia
   openModal()
@@ -400,7 +414,7 @@ watch(isDarkMode, async () => {
 <template>
   <AdminPageLayout section="ANGGOTA" accent="blue" variant="rounded" logout-message="Keluar dari Manajemen Anggota?">
 
-    <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+    <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28 space-y-8">
 
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -526,10 +540,10 @@ watch(isDarkMode, async () => {
                 </th>
                 <th :class="['px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">NIA</th>
                 <th :class="['px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Nama</th>
-                <th :class="['hidden md:table-cell px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">NPM</th>
-                <th :class="['hidden md:table-cell px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Jabatan</th>
-                <th :class="['hidden md:table-cell px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Role</th>
-                <th :class="['hidden md:table-cell px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Angkatan</th>
+                <th :class="['whitespace-nowrap px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">NPM</th>
+                <th :class="['whitespace-nowrap px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Jabatan</th>
+                <th :class="['whitespace-nowrap px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Role</th>
+                <th :class="['whitespace-nowrap px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider', themeClasses.tableHeadCell]">Angkatan</th>
               </tr>
             </thead>
             <tbody :class="themeClasses.tableBody">
@@ -542,7 +556,7 @@ watch(isDarkMode, async () => {
                   member.status === 'Aktif'
                     ? themeClasses.tableRowActive
                     : themeClasses.tableRowInactive,
-                  hoveredProfileNia === member.nia ? 'scale-[1.015] shadow-lg z-10 relative bg-blue-100/30 backdrop-blur-sm' : ''
+                  hoveredProfileNia === member.nia ? 'shadow-lg relative z-10 bg-blue-100/30' : ''
                 ]"
               >
 
@@ -614,8 +628,8 @@ watch(isDarkMode, async () => {
                 </td>
                 <td class="px-6 py-5 font-medium text-sm text-slate-800">{{ member.nia }}</td>
                 <td class="px-6 py-5 font-semibold text-sm text-slate-900">{{ member.name }}</td>
-                <td class="hidden md:table-cell px-6 py-5 text-sm text-slate-700">{{ member.npm }}</td>
-                <td class="hidden md:table-cell px-6 py-5 text-sm">
+                <td class="whitespace-nowrap px-6 py-5 text-sm text-slate-700">{{ member.npm }}</td>
+                <td class="whitespace-nowrap px-6 py-5 text-sm">
                   <span
                     :class="member.status === 'Aktif'
                       ? 'bg-blue-200 text-blue-800'
@@ -624,8 +638,8 @@ watch(isDarkMode, async () => {
                     {{ member.jabatan }}
                   </span>
                 </td>
-                <td class="hidden md:table-cell px-6 py-5 text-sm capitalize font-medium text-slate-800">{{ member.role }}</td>
-                <td class="hidden md:table-cell px-6 py-5 text-sm text-slate-700">{{ member.angkatan }}</td>
+                <td class="whitespace-nowrap px-6 py-5 text-sm capitalize font-medium text-slate-800">{{ member.role }}</td>
+                <td class="whitespace-nowrap px-6 py-5 text-sm text-slate-700">{{ member.angkatan }}</td>
               </tr>
 
               <!-- COLOSPAN DINAMIS: SEKARANG SELALU 7 KOLOM -->
@@ -663,6 +677,7 @@ watch(isDarkMode, async () => {
     </div>
 
     <!-- MODAL IMPORT EXCEL -->
+    <Teleport to="body">
     <Transition name="modal-overlay-fade">
       <div v-if="isImportModalOpen" class="fixed inset-0 z-[100]" role="dialog" aria-modal="true">
         <div class="fixed inset-0 flex items-center justify-center p-4">
@@ -777,8 +792,10 @@ watch(isDarkMode, async () => {
         </div>
       </div>
     </Transition>
+    </Teleport>
 
     <!-- MODAL POP-UP -->
+    <Teleport to="body">
     <Transition name="modal-overlay-fade">
       <div v-if="isModalOpen" class="fixed inset-0 z-[100]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="fixed inset-0 flex items-center justify-center p-4">
@@ -940,6 +957,7 @@ watch(isDarkMode, async () => {
         </div>
       </div>
     </Transition>
+    </Teleport>
 
   </AdminPageLayout>
 

@@ -1146,11 +1146,12 @@ onUnmounted(() => {
     </div>
 
     <!-- SMART ENTRY MODAL -->
+    <Teleport to="body">
     <div v-if="isModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeModal"></div>
 
       <div
-        :class="['relative w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-6 overflow-hidden', isDarkMode ? 'text-white' : 'text-slate-900 bg-white border-slate-200']">
+        :class="['relative w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-6 overflow-y-auto max-h-[90vh]', isDarkMode ? 'text-white' : 'text-slate-900 bg-white border-slate-200']">
 
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-xl font-bold">
@@ -1274,11 +1275,13 @@ onUnmounted(() => {
       </div>
 
     </div>
+    </Teleport>
 
     <!-- MODAL GENERATE TAGIHAN -->
+    <Teleport to="body">
     <div v-if="isGenerateModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeGenerateModal"></div>
-      <div :class="['relative w-full max-w-sm rounded-2xl shadow-2xl p-6 overflow-hidden',
+      <div :class="['relative w-full max-w-sm rounded-2xl shadow-2xl p-6 overflow-y-auto max-h-[90vh]',
         isDarkMode ? 'bg-slate-800 border border-white/10 text-white' : 'bg-white border border-slate-200 text-slate-900']">
 
         <div class="flex justify-between items-center mb-5">
@@ -1311,6 +1314,7 @@ onUnmounted(() => {
 
       </div>
     </div>
+    </Teleport>
 
   </AdminPageLayout>
 </template>

@@ -133,7 +133,7 @@ const navClass = computed(() => {
 
 const navHeight = computed(() => props.variant === 'flat' ? 'md:h-20' : 'md:h-16')
 const contentClasses = computed(() => [
-  'relative z-10',
+  'relative z-20',
   isDarkMode.value ? 'text-white' : 'text-slate-900',
   props.contentClass
 ])
@@ -312,7 +312,7 @@ onMounted(() => {
     <!-- BANNER NOTIFIKASI TAGIHAN (Bendahara Only) -->
     <div
       v-if="showBanner"
-      class="relative z-30 max-w-7xl mx-auto px-4 mb-4"
+      class="relative z-10 max-w-7xl mx-auto px-4 mb-4"
     >
       <div
         :class="[

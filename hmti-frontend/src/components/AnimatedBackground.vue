@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 defineProps({
   isDarkMode: {
@@ -8,17 +8,69 @@ defineProps({
   }
 })
 
+// ── Responsive / reduced-motion gating ───────────────────────────
+// The background is visually rich but expensive (many blurred orbs +
+// continuous animations). On phones / low-power / reduced-motion we
+// trim it down so scrolling and interaction stay smooth.
+const isMobile = ref(false)
+const reducedMotion = ref(false)
+const coarsePointer = ref(false)
+
+let mqMobile, mqReduced, mqCoarse
+
+// Full rich background (all layers + parallax) only on desktop-ish,
+// non-reduced-motion devices.
+const richBackground = computed(() => !isMobile.value && !reducedMotion.value)
+
+function syncMedia() {
+  isMobile.value = mqMobile?.matches ?? false
+  reducedMotion.value = mqReduced?.matches ?? false
+  coarsePointer.value = mqCoarse?.matches ?? false
+  updateParallaxListener()
+}
+
 // ── Mouse parallax tracking ──────────────────────────────────────
 const mouseX = ref(0)
 const mouseY = ref(0)
+let parallaxAttached = false
 
 function onMouseMove(e) {
   mouseX.value = (e.clientX / window.innerWidth - 0.5) * 50
   mouseY.value = (e.clientY / window.innerHeight - 0.5) * 50
 }
 
-onMounted(() => window.addEventListener('mousemove', onMouseMove, { passive: true }))
-onUnmounted(() => window.removeEventListener('mousemove', onMouseMove))
+// Only track the mouse when the rich background is active and the
+// device actually has a fine pointer — never on touch / mobile.
+function updateParallaxListener() {
+  const shouldAttach = richBackground.value && !coarsePointer.value
+  if (shouldAttach && !parallaxAttached) {
+    window.addEventListener('mousemove', onMouseMove, { passive: true })
+    parallaxAttached = true
+  } else if (!shouldAttach && parallaxAttached) {
+    window.removeEventListener('mousemove', onMouseMove)
+    parallaxAttached = false
+    mouseX.value = 0
+    mouseY.value = 0
+  }
+}
+
+onMounted(() => {
+  if (typeof window === 'undefined' || !window.matchMedia) return
+  mqMobile = window.matchMedia('(max-width: 767px)')
+  mqReduced = window.matchMedia('(prefers-reduced-motion: reduce)')
+  mqCoarse = window.matchMedia('(pointer: coarse)')
+  mqMobile.addEventListener('change', syncMedia)
+  mqReduced.addEventListener('change', syncMedia)
+  mqCoarse.addEventListener('change', syncMedia)
+  syncMedia()
+})
+
+onUnmounted(() => {
+  mqMobile?.removeEventListener('change', syncMedia)
+  mqReduced?.removeEventListener('change', syncMedia)
+  mqCoarse?.removeEventListener('change', syncMedia)
+  if (parallaxAttached) window.removeEventListener('mousemove', onMouseMove)
+})
 
 // Each orb moves at a different depth (parallax factor)
 const orbDepths = [0.30, -0.45, 0.20, -0.30, 0.38, -0.22, 0.28]
@@ -140,125 +192,142 @@ const pulseRings = [
   <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
 
     <!-- ════════════════════════════════
-         LAYER 0 · Aurora gradient base
+         LAYER 0 · Aurora gradient base (always rendered — static, cheap)
          ════════════════════════════════ -->
     <div class="absolute inset-0" :class="isDarkMode ? 'aurora-dark' : 'aurora-light'"></div>
 
     <!-- ════════════════════════════════
          LAYER 1 · Parallax orbs
-         Each orb in its own wrapper so JS translate + CSS blob don't conflict
+         Full set on desktop; a lightweight subset (fewer, softer blur,
+         no blob animation) on mobile / reduced-motion.
          ════════════════════════════════ -->
-    <div class="absolute -top-20 left-1/4" :style="orbStyle(0)">
-      <div :class="['w-72 h-72 md:w-96 md:h-96 rounded-full filter blur-3xl animate-blob',
-        isDarkMode ? 'bg-blue-600 opacity-25' : 'bg-blue-600 opacity-40']"></div>
-    </div>
+    <template v-if="richBackground">
+      <div class="absolute -top-20 left-1/4" :style="orbStyle(0)">
+        <div :class="['w-72 h-72 md:w-96 md:h-96 rounded-full filter blur-3xl animate-blob',
+          isDarkMode ? 'bg-blue-600 opacity-25' : 'bg-blue-600 opacity-40']"></div>
+      </div>
 
-    <div class="absolute top-10 right-1/4" :style="orbStyle(1)">
-      <div :class="['w-80 h-80 md:w-96 md:h-96 rounded-full filter blur-3xl animate-blob animation-delay-2000',
-        isDarkMode ? 'bg-indigo-600 opacity-20' : 'bg-orange-500 opacity-35']"></div>
-    </div>
+      <div class="absolute top-10 right-1/4" :style="orbStyle(1)">
+        <div :class="['w-80 h-80 md:w-96 md:h-96 rounded-full filter blur-3xl animate-blob animation-delay-2000',
+          isDarkMode ? 'bg-indigo-600 opacity-20' : 'bg-orange-500 opacity-35']"></div>
+      </div>
 
-    <div class="absolute top-1/3 left-10" :style="orbStyle(2)">
-      <div :class="['w-64 h-64 md:w-80 md:h-80 rounded-full filter blur-3xl animate-blob animation-delay-4000',
-        isDarkMode ? 'bg-purple-600 opacity-20' : 'bg-amber-600 opacity-40']"></div>
-    </div>
+      <div class="absolute top-1/3 left-10" :style="orbStyle(2)">
+        <div :class="['w-64 h-64 md:w-80 md:h-80 rounded-full filter blur-3xl animate-blob animation-delay-4000',
+          isDarkMode ? 'bg-purple-600 opacity-20' : 'bg-amber-600 opacity-40']"></div>
+      </div>
 
-    <div class="absolute top-1/2 right-10" :style="orbStyle(3)">
-      <div :class="['w-56 h-56 md:w-72 md:h-72 rounded-full filter blur-3xl animate-blob animation-delay-3000',
-        isDarkMode ? 'bg-teal-500 opacity-15' : 'bg-indigo-500 opacity-30']"></div>
-    </div>
+      <div class="absolute top-1/2 right-10" :style="orbStyle(3)">
+        <div :class="['w-56 h-56 md:w-72 md:h-72 rounded-full filter blur-3xl animate-blob animation-delay-3000',
+          isDarkMode ? 'bg-teal-500 opacity-15' : 'bg-indigo-500 opacity-30']"></div>
+      </div>
 
-    <div class="absolute bottom-1/4 left-1/4" :style="orbStyle(4)">
-      <div :class="['w-72 h-72 rounded-full filter blur-3xl animate-blob animation-delay-1000',
-        isDarkMode ? 'bg-pink-600 opacity-15' : 'bg-orange-600 opacity-30']"></div>
-    </div>
+      <div class="absolute bottom-1/4 left-1/4" :style="orbStyle(4)">
+        <div :class="['w-72 h-72 rounded-full filter blur-3xl animate-blob animation-delay-1000',
+          isDarkMode ? 'bg-pink-600 opacity-15' : 'bg-orange-600 opacity-30']"></div>
+      </div>
 
-    <div class="absolute bottom-10 right-1/3" :style="orbStyle(5)">
-      <div :class="['w-48 h-48 md:w-64 md:h-64 rounded-full filter blur-3xl animate-blob animation-delay-5000',
-        isDarkMode ? 'bg-cyan-500 opacity-20' : 'bg-amber-700 opacity-35']"></div>
-    </div>
+      <div class="absolute bottom-10 right-1/3" :style="orbStyle(5)">
+        <div :class="['w-48 h-48 md:w-64 md:h-64 rounded-full filter blur-3xl animate-blob animation-delay-5000',
+          isDarkMode ? 'bg-cyan-500 opacity-20' : 'bg-amber-700 opacity-35']"></div>
+      </div>
 
-    <div v-if="!isDarkMode" class="absolute top-3/4 left-2/3" :style="orbStyle(6)">
-      <div class="w-48 h-48 rounded-full filter blur-3xl opacity-30 animate-blob animation-delay-2000 bg-blue-700"></div>
-    </div>
+      <div v-if="!isDarkMode" class="absolute top-3/4 left-2/3" :style="orbStyle(6)">
+        <div class="w-48 h-48 rounded-full filter blur-3xl opacity-30 animate-blob animation-delay-2000 bg-blue-700"></div>
+      </div>
+    </template>
+
+    <!-- Lightweight orbs for mobile / reduced-motion: 3 soft blobs, no
+         parallax, no blob animation, softer blur to spare the GPU. -->
+    <template v-else>
+      <div class="absolute -top-20 left-1/4">
+        <div :class="['w-64 h-64 rounded-full filter blur-2xl',
+          isDarkMode ? 'bg-blue-600 opacity-20' : 'bg-blue-600 opacity-30']"></div>
+      </div>
+      <div class="absolute top-1/3 right-0">
+        <div :class="['w-56 h-56 rounded-full filter blur-2xl',
+          isDarkMode ? 'bg-indigo-600 opacity-15' : 'bg-orange-500 opacity-25']"></div>
+      </div>
+      <div class="absolute bottom-10 left-1/3">
+        <div :class="['w-56 h-56 rounded-full filter blur-2xl',
+          isDarkMode ? 'bg-purple-600 opacity-15' : 'bg-amber-600 opacity-25']"></div>
+      </div>
+    </template>
 
     <!-- ════════════════════════════════
-         LAYER 2 · Rotating geometric rings (outer + inner counter-rotating)
+         LAYERS 2-6 · Rings, pulses, shooting stars, particles, sparkles
+         Desktop-only rich effects. Skipped entirely on mobile /
+         reduced-motion to avoid continuous compositing work.
          ════════════════════════════════ -->
-    <div
-      v-for="(g, i) in geoRings" :key="`geo-out-${i}`"
-      class="absolute rounded-full border animate-spin-slow"
-      :class="isDarkMode ? 'border-blue-400/[0.07]' : 'border-primary-blue/[0.07]'"
-      :style="geoStyle(g)"
-    ></div>
-
-    <template v-for="(g, i) in geoRings" :key="`geo-in-${i}`">
+    <template v-if="richBackground">
+      <!-- LAYER 2 · Rotating geometric rings (outer + inner counter-rotating) -->
       <div
+        v-for="(g, i) in geoRings" :key="`geo-out-${i}`"
         class="absolute rounded-full border animate-spin-slow"
-        :class="isDarkMode ? 'border-purple-400/[0.05]' : 'border-accent-orange/[0.06]'"
+        :class="isDarkMode ? 'border-blue-400/[0.07]' : 'border-primary-blue/[0.07]'"
+        :style="geoStyle(g)"
+      ></div>
+
+      <template v-for="(g, i) in geoRings" :key="`geo-in-${i}`">
+        <div
+          class="absolute rounded-full border animate-spin-slow"
+          :class="isDarkMode ? 'border-purple-400/[0.05]' : 'border-accent-orange/[0.06]'"
+          :style="{
+            left: g.left,
+            top: g.top,
+            width: `${Math.round(g.size * 0.62)}px`,
+            height: `${Math.round(g.size * 0.62)}px`,
+            transform: 'translate(-50%, -50%)',
+            animationDuration: `${parseFloat(g.dur) * 1.3}s`,
+            animationDelay: g.delay,
+            animationDirection: 'reverse',
+            borderStyle: 'dashed',
+          }"
+        ></div>
+      </template>
+
+      <!-- LAYER 3 · Expanding pulse rings -->
+      <div
+        v-for="(r, i) in pulseRings" :key="`ring-${i}`"
+        class="animate-pulse-ring"
+        :class="isDarkMode ? 'border-blue-400/20' : 'border-primary-blue/[0.12]'"
+        :style="{ left: r.left, top: r.top, animationDelay: r.delay }"
+      ></div>
+
+      <!-- LAYER 4 · Shooting stars -->
+      <div
+        v-for="(s, i) in shootingStars" :key="`shoot-${i}`"
+        class="absolute animate-shoot"
+        :style="starStyle(s, isDarkMode)"
+      ></div>
+
+      <!-- LAYER 5 · Floating rising particles -->
+      <div
+        v-for="p in particles" :key="`p-${p.id}`"
+        class="absolute bottom-0 rounded-full animate-rise"
+        :class="p.accent
+          ? (isDarkMode ? 'bg-purple-300' : 'bg-accent-orange')
+          : (isDarkMode ? 'bg-blue-300'   : 'bg-primary-blue')"
         :style="{
-          left: g.left,
-          top: g.top,
-          width: `${Math.round(g.size * 0.62)}px`,
-          height: `${Math.round(g.size * 0.62)}px`,
-          transform: 'translate(-50%, -50%)',
-          animationDuration: `${parseFloat(g.dur) * 1.3}s`,
-          animationDelay: g.delay,
-          animationDirection: 'reverse',
-          borderStyle: 'dashed',
+          left: p.left,
+          width: p.size,
+          height: p.size,
+          opacity: p.opacity,
+          animationDuration: p.dur,
+          animationDelay: p.delay,
         }"
+      ></div>
+
+      <!-- LAYER 6 · Sparkle glow dots -->
+      <div
+        v-for="(s, i) in sparkles" :key="`sp-${i}`"
+        class="absolute rounded-full animate-sparkle"
+        :style="sparkleStyle(s, isDarkMode)"
       ></div>
     </template>
 
     <!-- ════════════════════════════════
-         LAYER 3 · Expanding pulse rings
-         ════════════════════════════════ -->
-    <div
-      v-for="(r, i) in pulseRings" :key="`ring-${i}`"
-      class="animate-pulse-ring"
-      :class="isDarkMode ? 'border-blue-400/20' : 'border-primary-blue/[0.12]'"
-      :style="{ left: r.left, top: r.top, animationDelay: r.delay }"
-    ></div>
-
-    <!-- ════════════════════════════════
-         LAYER 4 · Shooting stars
-         ════════════════════════════════ -->
-    <div
-      v-for="(s, i) in shootingStars" :key="`shoot-${i}`"
-      class="absolute animate-shoot"
-      :style="starStyle(s, isDarkMode)"
-    ></div>
-
-    <!-- ════════════════════════════════
-         LAYER 5 · Floating rising particles
-         ════════════════════════════════ -->
-    <div
-      v-for="p in particles" :key="`p-${p.id}`"
-      class="absolute bottom-0 rounded-full animate-rise"
-      :class="p.accent
-        ? (isDarkMode ? 'bg-purple-300' : 'bg-accent-orange')
-        : (isDarkMode ? 'bg-blue-300'   : 'bg-primary-blue')"
-      :style="{
-        left: p.left,
-        width: p.size,
-        height: p.size,
-        opacity: p.opacity,
-        animationDuration: p.dur,
-        animationDelay: p.delay,
-      }"
-    ></div>
-
-    <!-- ════════════════════════════════
-         LAYER 6 · Sparkle glow dots
-         ════════════════════════════════ -->
-    <div
-      v-for="(s, i) in sparkles" :key="`sp-${i}`"
-      class="absolute rounded-full animate-sparkle"
-      :style="sparkleStyle(s, isDarkMode)"
-    ></div>
-
-    <!-- ════════════════════════════════
-         LAYER 7 · Radial dot grid
+         LAYER 7 · Radial dot grid (static, cheap — always rendered)
          ════════════════════════════════ -->
     <div
       class="absolute inset-0 opacity-[0.045]"
@@ -269,7 +338,7 @@ const pulseRings = [
     ></div>
 
     <!-- ════════════════════════════════
-         LAYER 8 · Noise film-grain texture
+         LAYER 8 · Noise film-grain texture (static, cheap — always rendered)
          ════════════════════════════════ -->
     <div
       class="absolute inset-0 noise-texture"

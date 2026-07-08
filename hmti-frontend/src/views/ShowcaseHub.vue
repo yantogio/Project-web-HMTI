@@ -535,8 +535,9 @@ onUnmounted(() => { if (scrollObserver) scrollObserver.disconnect() })
     </Teleport>
 
     <!-- MEDIA GALLERY MODAL -->
+    <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="isMediaModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div v-if="isMediaModalOpen" class="fixed inset-0 z-[9998] flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" @click="isMediaModalOpen = false"></div>
         <div :class="['relative w-full max-w-4xl border rounded-2xl shadow-2xl p-6 overflow-hidden max-h-[85vh] flex flex-col', isDarkMode ? 'bg-slate-900 border-white/10' : 'bg-white border-slate-200']">
           <div class="flex justify-between items-center mb-4">
@@ -568,6 +569,7 @@ onUnmounted(() => { if (scrollObserver) scrollObserver.disconnect() })
         </div>
       </div>
     </Transition>
+    </Teleport>
 
   </AdminPageLayout>
 </template>
