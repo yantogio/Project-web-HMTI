@@ -1,5 +1,9 @@
 <template>
-  <div class="fixed bottom-6 left-6 z-50 flex flex-col items-start">
+  <!-- Root & kolom dibuat pointer-events-none agar area kosong di sekitar
+       tombol TIDAK memblok tap pada konten di baliknya (bug: bagian bawah
+       layar mobile jadi tidak bisa ditekan). Hanya tombol asli yang
+       mengaktifkan kembali pointer-events. -->
+  <div class="fixed bottom-6 left-6 z-50 flex flex-col items-start pointer-events-none">
     <div class="flex flex-col-reverse items-start gap-3 mb-3">
       <button
         v-for="item in visibleItems"
@@ -8,7 +12,7 @@
         type="button"
         class="flex items-center gap-3 rounded-full bg-slate-900/95 px-4 py-3 text-sm font-semibold text-white shadow-2xl shadow-slate-900/30 border border-white/10 transition-all duration-300 ease-out"
         :class="{
-          'opacity-100 translate-y-0 scale-100': isOpen,
+          'opacity-100 translate-y-0 scale-100 pointer-events-auto': isOpen,
           'opacity-0 translate-y-3 scale-95 pointer-events-none': !isOpen
         }"
         :style="{ transitionDelay: isOpen ? `${item.index * 50}ms` : `${(visibleItems.length - item.index) * 30}ms` }"
@@ -23,7 +27,7 @@
     <button
       type="button"
       @click="toggleOpen"
-      class="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-2xl shadow-blue-500/30 ring-2 ring-white/20 transition-transform duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-300/30"
+      class="pointer-events-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-2xl shadow-blue-500/30 ring-2 ring-white/20 transition-transform duration-300 hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-300/30"
       :aria-expanded="String(isOpen)"
       aria-label="Buka navigasi cepat"
     >

@@ -139,6 +139,32 @@ const handleFileUpload = async (event) => {
   const file = event.target.files?.[0] || event.dataTransfer?.files?.[0]
   if (!file) return
 
+  // Validasi tipe file per-tab secara eksplisit (bukan sekadar atribut accept
+  // yang bisa di-bypass), berlaku untuk picker maupun drag-and-drop.
+  const fileName = file.name?.toLowerCase() || ''
+  const BRANDING_EXTS = ['.psd', '.ai', '.fig', '.sketch', '.svg', '.eps']
+
+  // Tab Media Event: hanya foto & video.
+  if (activeTab.value === 'media') {
+    const isMedia = file.type?.startsWith('image/') || file.type?.startsWith('video/')
+    if (!isMedia) {
+      toastError('Hanya foto dan video yang diperbolehkan di Media Event')
+      if (fileInput.value) fileInput.value.value = ''
+      return
+    }
+  }
+
+  // Tab Branding Kit: hanya gambar atau file desain (tanpa video/dokumen).
+  if (activeTab.value === 'branding') {
+    const isImage = file.type?.startsWith('image/')
+    const isDesign = BRANDING_EXTS.some(ext => fileName.endsWith(ext))
+    if (!isImage && !isDesign) {
+      toastError('Branding Kit hanya menerima gambar atau file desain (PSD, AI, FIG, SKETCH, SVG, EPS)')
+      if (fileInput.value) fileInput.value.value = ''
+      return
+    }
+  }
+
   isUploading.value = true
   const formData = new FormData()
   formData.append('file', file)
@@ -202,7 +228,7 @@ const openFilePicker = () => {
 }
 
 const activeAccept = computed(() => {
-  if (activeTab.value === 'media') return 'image/*,video/*,.psd,.ai,.fig,.sketch'
+  if (activeTab.value === 'media') return 'image/*,video/*'
   if (activeTab.value === 'branding') return 'image/*,.psd,.ai,.fig,.sketch,.svg,.eps'
   return '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.ods,.odp'
 })

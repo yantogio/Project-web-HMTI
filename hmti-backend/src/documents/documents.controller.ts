@@ -28,6 +28,29 @@ export class DocumentsController {
       throw new BadRequestException('File tidak terdeteksi! Cek Key di Postman harus bernama "file"');
     }
 
+    // Penegakan tipe file per kategori di server agar tidak bisa di-bypass
+    // lewat request langsung (client hanya menyaring picker).
+    const mime = file.mimetype ?? '';
+    const name = (file.originalname ?? '').toLowerCase();
+
+    // Media Event hanya untuk foto & video.
+    if (dto.type === 'MEDIA') {
+      const isMedia = mime.startsWith('image/') || mime.startsWith('video/');
+      if (!isMedia) {
+        throw new BadRequestException('Media Event hanya menerima file foto (image/*) atau video (video/*).');
+      }
+    }
+
+    // Branding Kit hanya untuk gambar atau file desain (tanpa video/dokumen).
+    if (dto.type === 'BRANDING') {
+      const brandingExts = ['.psd', '.ai', '.fig', '.sketch', '.svg', '.eps'];
+      const isImage = mime.startsWith('image/');
+      const isDesign = brandingExts.some((ext) => name.endsWith(ext));
+      if (!isImage && !isDesign) {
+        throw new BadRequestException('Branding Kit hanya menerima gambar atau file desain (PSD, AI, FIG, SKETCH, SVG, EPS).');
+      }
+    }
+
     // Debugging untuk melihat apakah Windows membaca file dengan benar
     console.log('--- DEBUG UPLOAD ---');
     console.log('Nama File:', file.originalname);

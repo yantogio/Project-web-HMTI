@@ -241,3 +241,74 @@
   background-size: 200px 200px;
   mix-blend-mode: overlay;
 }
+
+/* ============================================================
+   MOBILE PERFORMANCE OPTIMIZATION
+   Ref: openspec change `optimize-mobile-and-media-upload`.
+
+   Semua aturan di sini DIKURUNG dalam `@media (max-width: 767px)`
+   sehingga tidak pernah aktif di desktop (≥768px) — tampilan &
+   perilaku desktop dijamin identik. Yang dimatikan hanya properti
+   kosmetik yang mahal di GPU mobile (backdrop-filter, filter blur,
+   mix-blend, animasi latar looping). Tidak ada perubahan layout,
+   DOM, atau logika, jadi seluruh fungsi tetap berjalan.
+   ============================================================ */
+@media (max-width: 767px) {
+  /* 1. Matikan backdrop-filter — penyebab utama scroll patah-patah.
+        Blur latar sticky/kartu di-re-render tiap frame = sangat mahal. */
+  .backdrop-blur-sm,
+  .backdrop-blur,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* 2. Hentikan animasi latar yang repaint terus-menerus walau idle. */
+  .aurora-light,
+  .aurora-dark,
+  .animate-blob,
+  .animate-rise,
+  .animate-sparkle,
+  .animate-shoot,
+  .animate-pulse-ring,
+  .animate-spin-slow,
+  .animate-pulse-slow,
+  .animate-float,
+  .animate-float-slow,
+  .animate-float-r {
+    animation: none !important;
+  }
+
+  /* 3. Hilangkan orb blur besar & noise blend-mode (komposit mahal). */
+  .blur-2xl,
+  .blur-3xl { display: none !important; }
+  .noise-texture { display: none !important; }
+
+  /* 4. Fallback keterbacaan: tanpa backdrop-blur, panel glass paling
+        transparan diberi sedikit tambahan opasitas agar tetap terdefinisi
+        di atas gradient statis (mobile-only, desktop tak terpengaruh). */
+  .bg-white\/5  { background-color: rgba(255, 255, 255, 0.10) !important; }
+  .bg-white\/10 { background-color: rgba(255, 255, 255, 0.16) !important; }
+}
+
+/* Hormati preferensi reduced-motion di SEMUA ukuran layar: matikan
+   animasi latar looping (bukan animasi entrance satu-kali). */
+@media (prefers-reduced-motion: reduce) {
+  .aurora-light,
+  .aurora-dark,
+  .animate-blob,
+  .animate-rise,
+  .animate-sparkle,
+  .animate-shoot,
+  .animate-pulse-ring,
+  .animate-spin-slow,
+  .animate-pulse-slow,
+  .animate-float,
+  .animate-float-slow,
+  .animate-float-r {
+    animation: none !important;
+  }
+}
