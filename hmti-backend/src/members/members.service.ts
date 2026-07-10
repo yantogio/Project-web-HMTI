@@ -3,7 +3,26 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { GoogleDriveService } from '../documents/google-drive.service';
 import { UpdateMemberDto } from './dto/update-member.dto';
+import { CreateMemberDto } from './dto/create-member.dto';
 import * as ExcelJS from 'exceljs';
+
+// Kolom aman untuk dikirim ke klien. Allowlist eksplisit: kolom sensitif
+// (password) dan server-managed (avatarDriveFileId) tidak pernah ikut, dan
+// kolom baru pada skema tidak bocor otomatis. Cermin dari select di findOne().
+const MEMBER_PUBLIC_SELECT = {
+  nia: true,
+  npm: true,
+  name: true,
+  angkatan: true,
+  jabatan: true,
+  role: true,
+  status: true,
+  joinedAt: true,
+  email: true,
+  phone: true,
+  bio: true,
+  avatarUrl: true,
+} as const;
 
 @Injectable()
 export class MembersService {
@@ -12,13 +31,17 @@ export class MembersService {
     private googleDriveService: GoogleDriveService,
   ) {}
 
-  async create(data: any) {
-    // Perintah ini akan menyimpan data ke tabel Member
-    return this.prisma.member.create({ data });
+  async create(data: CreateMemberDto) {
+    // password sengaja tidak diterima dari body → schema @default("password123")
+    // yang mengisi. Alur generate akun tidak berubah.
+    return this.prisma.member.create({
+      data,
+      select: MEMBER_PUBLIC_SELECT,
+    });
   }
 
   async findAll() {
-    return this.prisma.member.findMany();
+    return this.prisma.member.findMany({ select: MEMBER_PUBLIC_SELECT });
   }
 
   // Fungsi Update — data sudah divalidasi & di-whitelist oleh UpdateMemberDto

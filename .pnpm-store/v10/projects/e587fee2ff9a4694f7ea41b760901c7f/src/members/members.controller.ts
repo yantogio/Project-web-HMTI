@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { MembersService } from './members.service';
 import { UpdateMemberDto } from './dto/update-member.dto';
+import { CreateMemberDto } from './dto/create-member.dto';
 import { Roles } from '../decorators/roles.decorator';
 import { RolesGuard } from '../guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -60,9 +61,11 @@ export class MembersController {
   // 2. ROUTE UMUM / ADMIN
   // ==========================================
 
-  // Tambah Anggota Baru
+  // Tambah Anggota Baru — hanya pengurus (sejajar PATCH/DELETE di bawah)
   @Post()
-  create(@Body() data: any) {
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ketum', 'sekretaris', 'bendahara')
+  create(@Body() data: CreateMemberDto) {
     return this.membersService.create(data);
   }
 

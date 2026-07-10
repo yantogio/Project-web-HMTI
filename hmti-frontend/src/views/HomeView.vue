@@ -91,6 +91,20 @@ const openKetumWhatsapp = () => {
   }
 }
 
+const apkDownloadUrl = computed(() => `${API_BASE_URL}/documents/app/apk`)
+
+// Peramban tidak memberi tahu kapan unduhan selesai, jadi keadaan ini murni
+// umpan balik visual + peredam klik ganda, bukan status unduhan sebenarnya.
+const isDownloadingApk = ref(false)
+let apkResetTimer = null
+
+const onDownloadApk = () => {
+  if (isDownloadingApk.value) return
+  isDownloadingApk.value = true
+  clearTimeout(apkResetTimer)
+  apkResetTimer = setTimeout(() => { isDownloadingApk.value = false }, 3000)
+}
+
 const animateTotalMembers = () => {
   const target = totalMembers.value
   if (target === 0) { totalMembersCount.value = 0; return }
@@ -257,6 +271,7 @@ onUnmounted(() => {
   if (scrollObserver) scrollObserver.disconnect()
   if (statsObserver) statsObserver.disconnect()
   window.removeEventListener('scroll', handleScroll)
+  clearTimeout(apkResetTimer)
 })
 
 const themeClasses = computed(() => {
@@ -462,6 +477,32 @@ watch(isDarkMode, async () => {
               </svg>
               Hubungi Ketua Umum
             </button>
+          </div>
+
+          <!-- Download APK -->
+          <div class="hero-fade-up mt-4 flex justify-center" style="animation-delay:0.44s;">
+            <a
+              :href="apkDownloadUrl"
+              download="E-HMTI.apk"
+              @click="onDownloadApk"
+              :aria-busy="isDownloadingApk"
+              :class="['group inline-flex items-center gap-2.5 px-6 md:px-8 py-3 md:py-3.5 rounded-full font-semibold text-sm md:text-base backdrop-blur-md ring-1 transition-all duration-200 transform hover:-translate-y-0.5 active:scale-[0.98]',
+                isDarkMode
+                  ? 'bg-white/8 text-slate-100 ring-white/15 hover:bg-white/14 hover:ring-white/30'
+                  : 'bg-primary-blue/8 text-blue-800 ring-primary-blue/20 hover:bg-primary-blue/14 hover:ring-primary-blue/40',
+                isDownloadingApk ? 'pointer-events-none opacity-70' : '']"
+              title="Unduh aplikasi Android E-HMTI"
+            >
+              <svg v-if="!isDownloadingApk" class="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:translate-y-0.5"
+                fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16" />
+              </svg>
+              <svg v-else class="w-4 h-4 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+              {{ isDownloadingApk ? 'Menyiapkan…' : 'Download E-HMTI' }}
+            </a>
           </div>
 
           <!-- Scroll indicator -->

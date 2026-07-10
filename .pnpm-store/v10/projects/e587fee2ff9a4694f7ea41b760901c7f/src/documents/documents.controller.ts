@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Delete, Body, UseInterceptors, UploadedFile, BadRequestException, UseGuards, Req, Param, ParseIntPipe, Res, NotFoundException, Query } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, UseInterceptors, UploadedFile, BadRequestException, UseGuards, Req, Param, ParseIntPipe, Res, NotFoundException, Query, Logger } from '@nestjs/common';
 import type { Response } from 'express';
+import { Readable } from 'stream';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentsService } from './documents.service';
 import { CreateDocumentDto } from './dto/create-document.dto';
@@ -10,7 +11,73 @@ import { Roles } from '../decorators/roles.decorator';
 
 @Controller('documents')
 export class DocumentsController {
+  private readonly logger = new Logger(DocumentsController.name);
+
   constructor(private readonly documentsService: DocumentsService) {}
+
+  // Publik: tidak memakai GoogleDriveService karena scope OAuth backend adalah
+  // drive.file, yang hanya menjangkau berkas yang dibuat aplikasi ini sendiri.
+  // APK diunggah manual ke Drive, jadi diambil anonim sebagai berkas "anyone with link".
+  @Get('app/apk')
+  async downloadApk(@Res() res: Response) {
+    const fileId = process.env.EHMTI_APK_FILE_ID;
+
+    if (!fileId) {
+      this.logger.warn('EHMTI_APK_FILE_ID belum diset; endpoint unduhan APK nonaktif');
+      res.status(503).json({ error: 'Unduhan aplikasi belum tersedia' });
+      return;
+    }
+
+    const driveUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`;
+
+    try {
+      const upstream = await fetch(driveUrl, { redirect: 'follow' });
+      const upstreamType = upstream.headers.get('content-type') ?? '';
+
+      // Drive membalas HTML (layar login / peringatan) saat berbagi dicabut.
+      // Meneruskannya akan menghasilkan E-HMTI.apk rusak berisi HTML.
+      if (!upstream.ok || !upstream.body || upstreamType.includes('text/html')) {
+        this.logger.error(
+          `Drive menolak APK: status=${upstream.status} content-type=${upstreamType}`,
+        );
+        res.status(404).json({
+          error: 'File aplikasi tidak dapat diakses saat ini. Silakan coba lagi nanti.',
+        });
+        return;
+      }
+
+      const contentLength = upstream.headers.get('content-length');
+      if (contentLength) res.setHeader('Content-Length', contentLength);
+
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="E-HMTI.apk"');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setTimeout(5 * 60 * 1000);
+
+      const stream = Readable.fromWeb(upstream.body as any);
+
+      stream.on('error', (error) => {
+        this.logger.error(`Stream APK terputus: ${error.message}`);
+        res.destroy();
+      });
+
+      res.on('error', () => stream.destroy());
+      res.on('close', () => stream.destroy());
+
+      stream.pipe(res);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Gagal mengambil APK dari Drive: ${message}`);
+
+      if (!res.headersSent) {
+        res.status(404).json({
+          error: 'File aplikasi tidak dapat diakses saat ini. Silakan coba lagi nanti.',
+        });
+      } else {
+        res.destroy();
+      }
+    }
+  }
 
   @Post('upload')
   @UseGuards(JwtAuthGuard, RolesGuard)
