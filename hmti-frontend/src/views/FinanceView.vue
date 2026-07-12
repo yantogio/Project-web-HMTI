@@ -1151,7 +1151,7 @@ onUnmounted(() => {
       <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeModal"></div>
 
       <div
-        :class="['relative w-full max-w-md bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-6 overflow-y-auto max-h-[90vh]', isDarkMode ? 'text-white' : 'text-slate-900 bg-white border-slate-200']">
+        :class="['relative w-full max-w-md rounded-2xl shadow-2xl p-6 overflow-y-auto max-h-[90vh] border', isDarkMode ? 'bg-slate-800 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900']">
 
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-xl font-bold">

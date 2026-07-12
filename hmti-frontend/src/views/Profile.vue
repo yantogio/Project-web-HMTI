@@ -5,10 +5,12 @@ import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import AdminPageLayout from '../components/AdminPageLayout.vue'
 import http, { API_BASE_URL } from '@/api/http'
+import { useToast } from '../composables/useToast'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
 
 // --- 1. STATE & THEME ---
 const isDarkMode = computed(() => themeStore.isDarkMode)
@@ -108,7 +110,7 @@ const fetchMyProfile = async () => {
     }
   } catch (error) {
     console.error('Gagal ambil profil:', error)
-    alert('Gagal memuat data profil.')
+    toastError('Gagal memuat data profil.')
   }
 }
 
@@ -126,14 +128,14 @@ const saveProfile = async () => {
       }
     })
     
-    alert('Profil berhasil diperbarui!')
+    toastSuccess('Profil berhasil diperbarui!')
     // Update nama di store agar Navbar ikut berubah
     if(authStore.user) {
         authStore.user.name = profileData.value.name
     }
   } catch (error) {
     console.error(error)
-    alert('Gagal menyimpan profil.')
+    toastError('Gagal menyimpan profil.')
   }
 }
 
@@ -141,15 +143,15 @@ const saveProfile = async () => {
 const changePassword = async () => {
   // Validasi Frontend
   if(!passwordData.value.currentPassword?.trim()) {
-    alert('Masukkan password saat ini.')
+    toastWarning('Masukkan password saat ini.')
     return
   }
   if(passwordData.value.newPassword !== passwordData.value.confirmPassword) {
-    alert('Password baru dan konfirmasi tidak cocok!')
+    toastWarning('Password baru dan konfirmasi tidak cocok!')
     return
   }
   if(passwordData.value.newPassword.length < 6) {
-    alert('Password minimal 6 karakter!')
+    toastWarning('Password minimal 6 karakter!')
     return
   }
 
@@ -163,15 +165,15 @@ const changePassword = async () => {
       }
     })
     
-    alert('Password berhasil diubah! Silakan login ulang.')
+    toastSuccess('Password berhasil diubah! Silakan login ulang.')
     // Logout otomatis
     authStore.logout()
     router.push('/login')
-    
+
   } catch (error) {
     console.error(error)
     const msg = error.response?.data?.message || 'Gagal mengubah password. Cek password lama Anda.'
-    alert(msg)
+    toastError(msg)
   }
 }
 

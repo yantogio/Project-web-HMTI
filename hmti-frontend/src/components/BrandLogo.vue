@@ -28,7 +28,7 @@ defineProps({
         size === 'lg' ? 'h-12' :
         size === 'xl' ? 'h-16' : 'h-10'
       ]"
-      :style="{ filter: isDarkMode ? 'drop-shadow(0 0 8px rgba(255,255,255,0.18))' : 'drop-shadow(0 1px 4px rgba(0,0,0,0.12))' }"
+      :style="{ filter: isDarkMode ? 'drop-shadow(1px 0 0 rgba(255,255,255,0.95)) drop-shadow(-1px 0 0 rgba(255,255,255,0.95)) drop-shadow(0 1px 0 rgba(255,255,255,0.95)) drop-shadow(0 -1px 0 rgba(255,255,255,0.95)) drop-shadow(0 0 6px rgba(255,255,255,0.4))' : 'drop-shadow(0 1px 4px rgba(0,0,0,0.12))' }"
       alt="Logo HMTI"
       draggable="false"
     />
@@ -42,7 +42,7 @@ defineProps({
         size === 'lg' ? 'h-11' :
         size === 'xl' ? 'h-14' : 'h-9'
       ]"
-      :style="{ filter: isDarkMode ? 'drop-shadow(0 0 8px rgba(255,255,255,0.18))' : 'drop-shadow(0 1px 4px rgba(0,0,0,0.12))' }"
+      :style="{ filter: isDarkMode ? 'drop-shadow(1px 0 0 rgba(255,255,255,0.95)) drop-shadow(-1px 0 0 rgba(255,255,255,0.95)) drop-shadow(0 1px 0 rgba(255,255,255,0.95)) drop-shadow(0 -1px 0 rgba(255,255,255,0.95)) drop-shadow(0 0 6px rgba(255,255,255,0.4))' : 'drop-shadow(0 1px 4px rgba(0,0,0,0.12))' }"
       alt="Logo UBS"
       draggable="false"
     />

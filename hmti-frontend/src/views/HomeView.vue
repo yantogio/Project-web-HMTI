@@ -641,11 +641,11 @@ watch(isDarkMode, async () => {
                     <div class="text-center md:text-left flex-1 min-w-0">
                       <span
                         :class="['text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full inline-block mb-2', isDarkMode ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700']">
-                        {{ officer.role }}
+                        {{ officer.jabatan }}
                       </span>
                       <h3 :class="['text-xl md:text-3xl font-bold mb-1 truncate', headingGradientClass]">{{ officer.name }}
                       </h3>
-                      <p :class="['text-sm md:text-base font-medium mb-4', themeClasses.textMuted]">{{ officer.jabatan
+                      <p v-if="officer.bio" :class="['text-sm md:text-base font-medium mb-4', themeClasses.textMuted]">{{ officer.bio
                       }}</p>
                       <div class="flex flex-wrap gap-2 justify-center md:justify-start">
                         <span :class="['px-3 py-1 rounded-lg text-xs font-mono border', themeClasses.inputBg]">NIA: {{
