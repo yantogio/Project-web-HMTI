@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class DuesService {
@@ -41,6 +42,183 @@ export class DuesService {
       remaining,
       creditBalance: totalCredit
     };
+  }
+
+  async getMemberArrears(memberNia: string) {
+    const member = await this.prisma.member.findUnique({ where: { nia: memberNia } });
+    if (!member || member.status !== 'Aktif') {
+      return {
+        hasArrears: false,
+        unpaidMonths: 0,
+        totalRemaining: 0,
+        periods: []
+      };
+    }
+
+    const dues = await this.prisma.dues.findMany({
+      where: { memberNia },
+      orderBy: [{ year: 'asc' }, { month: 'asc' }]
+    });
+
+    if (!dues.length) {
+      return {
+        hasArrears: false,
+        unpaidMonths: 0,
+        totalRemaining: 0,
+        periods: []
+      };
+    }
+
+    const unpaidMonths = dues.filter(item => (item.amountDue || 0) - Math.min(item.amountPaid || 0, item.amountDue || 0) > 0).length;
+    const totalRemaining = dues.reduce((sum, item) => {
+      const amountDue = item.amountDue || 0;
+      const amountPaid = Math.min(item.amountPaid || 0, amountDue);
+      return sum + Math.max(0, amountDue - amountPaid);
+    }, 0);
+    const totalCredit = dues.reduce((sum, item) => sum + (item.creditBalance || 0), 0);
+    const periods = dues.filter(item => (item.amountDue || 0) - Math.min(item.amountPaid || 0, item.amountDue || 0) > 0).map(item => item.period);
+
+    return {
+      hasArrears: totalRemaining > 0 && totalCredit === 0,
+      unpaidMonths,
+      totalRemaining,
+      periods
+    };
+  }
+
+  async generateDuesReport(): Promise<Buffer> {
+    const now = new Date();
+    const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const [currentYear, currentMonth] = currentPeriod.split('-').map(Number);
+
+    const duesRows = await this.prisma.dues.findMany({
+      where: { member: { status: 'Aktif' } },
+      include: { member: { select: { nia: true, name: true, angkatan: true, jabatan: true } } },
+      orderBy: [{ memberNia: 'asc' }, { year: 'asc' }, { month: 'asc' }]
+    });
+
+    const periods: string[] = [];
+    const seenPeriods = new Set<string>();
+    const members = await this.prisma.member.findMany({ where: { status: 'Aktif' } });
+
+    for (const row of duesRows) {
+      if (!seenPeriods.has(row.period)) {
+        seenPeriods.add(row.period);
+        periods.push(row.period);
+      }
+    }
+
+    if (!periods.length) {
+      const earliest = duesRows[0]?.period;
+      if (earliest) {
+        periods.push(earliest);
+      }
+    }
+
+    let startYear = currentYear;
+    let startMonth = currentMonth;
+    if (periods.length) {
+      const [firstYear, firstMonth] = periods[0].split('-').map(Number);
+      startYear = firstYear;
+      startMonth = firstMonth;
+    }
+
+    const periodSequence = [] as string[];
+    let year = startYear;
+    let month = startMonth;
+    while (true) {
+      periodSequence.push(`${year}-${String(month).padStart(2, '0')}`);
+      if (year === currentYear && month === currentMonth) break;
+      month += 1;
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
+    }
+
+    const rows = members.map(member => {
+      const rowValues: Record<string, string | number> = {
+        nia: member.nia,
+        nama: member.name,
+        angkatan: member.angkatan,
+        jabatan: member.jabatan
+      };
+      const memberRows = duesRows.filter(item => item.memberNia === member.nia);
+      const memberMap = new Map(memberRows.map(item => [item.period, item]));
+
+      periodSequence.forEach(period => {
+        const dues = memberMap.get(period);
+        if (!dues) {
+          rowValues[period] = 'Belum Bayar';
+          return;
+        }
+
+        const remaining = Math.max(0, (dues.amountDue || 0) - Math.min(dues.amountPaid || 0, dues.amountDue || 0));
+        const paidAmount = Math.min(dues.amountPaid || 0, dues.amountDue || 0);
+        const labels = [] as string[];
+        if (paidAmount > 0) labels.push(`Dibayar ${paidAmount}`);
+        if (remaining > 0) labels.push('Belum Bayar');
+        if (dues.lateFeeApplied) labels.push('Denda');
+        if ((dues.creditBalance || 0) > 0) labels.push('Lebih Bayar');
+        rowValues[period] = labels.join(' | ') || 'Belum Bayar';
+      });
+
+      const totalPaid = memberRows.reduce((sum, item) => sum + Math.min(item.amountPaid || 0, item.amountDue || 0), 0);
+      const totalRemaining = memberRows.reduce((sum, item) => sum + Math.max(0, (item.amountDue || 0) - Math.min(item.amountPaid || 0, item.amountDue || 0)), 0);
+      rowValues.totalPaid = totalPaid;
+      rowValues.totalRemaining = totalRemaining;
+      return rowValues;
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Laporan Uang Kas');
+
+    const borderStyle: Partial<ExcelJS.Border> = { style: 'thin', color: { argb: 'FF999999' } };
+    const allBorders = { top: borderStyle, left: borderStyle, bottom: borderStyle, right: borderStyle };
+    const rupiah = (n: number) => n === 0 ? '-' : new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
+
+    sheet.mergeCells('A1:G1');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = `Laporan Uang Kas HMTI — Periode ${periodSequence[0]} s/d ${periodSequence[periodSequence.length - 1]}`;
+    titleCell.font = { bold: true, size: 13 };
+    titleCell.alignment = { horizontal: 'center' };
+    sheet.getRow(1).height = 24;
+
+    const headers = ['NIA', 'Nama', 'Angkatan', 'Jabatan', ...periodSequence, 'Total Dibayar', 'Total Sisa'];
+    const headerRow = sheet.getRow(3);
+    headerRow.values = headers;
+    headerRow.font = { bold: true };
+    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+    headerRow.height = 18;
+    headerRow.eachCell(cell => {
+      cell.border = allBorders;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F7' } };
+    });
+
+    sheet.columns = [
+      { key: 'nia', width: 12 },
+      { key: 'nama', width: 22 },
+      { key: 'angkatan', width: 12 },
+      { key: 'jabatan', width: 18 },
+      ...periodSequence.map(() => ({ key: 'period', width: 24 })),
+      { key: 'totalPaid', width: 16 },
+      { key: 'totalRemaining', width: 16 },
+    ];
+
+    rows.forEach((row, index) => {
+      const values = [row.nia, row.nama, row.angkatan, row.jabatan, ...periodSequence.map(period => row[period]), row.totalPaid, row.totalRemaining];
+      const dataRow = sheet.addRow(values);
+      dataRow.eachCell((cell, colNumber) => {
+        cell.border = allBorders;
+        if (colNumber > 4 + periodSequence.length) {
+          cell.numFmt = '#,##0';
+          cell.alignment = { horizontal: 'right' };
+        }
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 
   // 2. FUNGSI CEK STATUS GENERATE (Untuk notifikasi banner bendahara)

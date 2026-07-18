@@ -141,6 +141,10 @@ const contentClasses = computed(() => [
 const { success: toastSuccess, error: toastError } = useToast()
 const { confirm: confirmDialog } = useConfirm()
 
+const formatIDR = (num) => {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0)
+}
+
 const goBackToMenu = () => {
   router.push('/admin')
 }
@@ -161,6 +165,7 @@ const isBendahara = computed(() => authStore.user?.role === 'bendahara')
 const generateStatus = ref(null)
 const isBannerVisible = ref(false)
 const isGeneratingFromBanner = ref(false)
+const memberArrears = ref(null)
 
 const getCurrentPeriod = () => {
   const now = new Date()
@@ -200,6 +205,19 @@ const checkGenerateStatus = async () => {
   }
 }
 
+const fetchMemberArrears = async () => {
+  if (!authStore.token) return
+
+  try {
+    const res = await http.get('/dues/my-arrears', {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    memberArrears.value = res.data
+  } catch (e) {
+    console.error('Gagal mengambil data tunggakan:', e)
+  }
+}
+
 const dismissBanner = () => {
   localStorage.setItem(skipKey.value, 'true')
   isBannerVisible.value = false
@@ -227,6 +245,7 @@ const generateFromBanner = async () => {
 
 onMounted(() => {
   checkGenerateStatus()
+  fetchMemberArrears()
 })
 </script>
 
@@ -308,6 +327,32 @@ onMounted(() => {
         </div>
       </div>
     </nav>
+
+    <div
+      v-if="memberArrears?.hasArrears"
+      class="relative z-10 max-w-7xl mx-auto px-4 mb-4"
+    >
+      <div
+        :class="[
+          'rounded-2xl border shadow-lg px-5 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between',
+          isDarkMode ? 'bg-amber-500/15 border-amber-400/30 text-amber-100' : 'bg-amber-50 border-amber-300 text-amber-900'
+        ]"
+      >
+        <div class="flex items-start gap-3">
+          <div class="mt-0.5 rounded-full p-2" :class="isDarkMode ? 'bg-amber-400/20' : 'bg-amber-100'">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M4.93 19h14.14A2.93 2.93 0 0022 16.07V7.93A2.93 2.93 0 0019.07 5H4.93A2.93 2.93 0 002 7.93v8.14A2.93 2.93 0 004.93 19z" />
+            </svg>
+          </div>
+          <div>
+            <div class="font-bold text-sm sm:text-base">Tagihan uang kas belum lunas</div>
+            <div class="text-sm opacity-90">
+              Total tunggakan Anda {{ formatIDR(memberArrears.totalRemaining) }} dari {{ memberArrears.unpaidMonths }} bulan.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- BANNER NOTIFIKASI TAGIHAN (Bendahara Only) -->
     <div

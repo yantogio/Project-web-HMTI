@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Query, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Res, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Response } from 'express';
 import { FinanceConfigService } from './finance-config.service';
 import { DuesService } from './dues.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -50,5 +51,15 @@ export class FinanceController {
   async applyLateFees() {
     const applied = await this.duesService.applyPendingLateFees();
     return { applied };
+  }
+
+  @Get('dues-report')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('bendahara')
+  async getDuesReport(@Res() res: Response) {
+    const buffer = await this.duesService.generateDuesReport();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="Laporan-Uang-Kas.xlsx"');
+    res.send(buffer);
   }
 }

@@ -1,6 +1,7 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { DuesService } from './dues.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Response } from 'express';
 
 @Controller('dues')
 export class DuesController {
@@ -18,6 +19,12 @@ export class DuesController {
   @UseGuards(JwtAuthGuard)
   getSummary() {
     return this.duesService.getSummary();
+  }
+
+  @Get('my-arrears')
+  @UseGuards(JwtAuthGuard)
+  getMyArrears(@Req() req: any) {
+    return this.duesService.getMemberArrears(req.user.nia);
   }
 
   // 2. Daftar Status Anggota (Pagination)
