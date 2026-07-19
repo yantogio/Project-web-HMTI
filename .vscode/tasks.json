@@ -1,0 +1,33 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "archive-openspec-change",
+			"type": "shell",
+			"command": "cmd /c \"if not exist \\\"openspec\\\\changes\\\\archive\\\" mkdir \\\"openspec\\\\changes\\\\archive\\\" && move /y \\\"openspec\\\\changes\\\\dues-notification-and-report\\\" \\\"openspec\\\\changes\\\\archive\\\\2026-07-20-dues-notification-and-report\\\"\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "verify-powershell-task",
+			"type": "shell",
+			"command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'c:\\PROJECT WEB HMTI'; New-Item -ItemType File -Path 'archive-test.txt' -Force | Out-Null; Write-Output 'created'\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "archive-openspec-change-final",
+			"type": "shell",
+			"command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Set-Location 'c:\\PROJECT WEB HMTI'; New-Item -ItemType Directory -Path 'openspec\\changes\\archive' -Force | Out-Null; Move-Item -LiteralPath 'openspec\\changes\\dues-notification-and-report' -Destination 'openspec\\changes\\archive\\2026-07-20-dues-notification-and-report' -Force; Write-Output 'moved'\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "cleanup-archive-temp-files",
+			"type": "shell",
+			"command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Remove-Item -Force 'C:\\PROJECT WEB HMTI\\temp_archive_change.py','C:\\PROJECT WEB HMTI\\archive_change.cmd','C:\\PROJECT WEB HMTI\\archive_change.ps1','C:\\PROJECT WEB HMTI\\archive-test.txt','C:\\PROJECT WEB HMTI\\dummy.txt' -ErrorAction SilentlyContinue; Write-Output 'cleanup-complete'\"",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
