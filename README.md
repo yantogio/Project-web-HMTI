@@ -9,10 +9,6 @@ Built end to end as my final-year project at Universitas Bani Saleh and
 evaluated by its intended users through formal User Acceptance Testing,
 scoring **84.47% acceptance** on a Likert scale.
 
-**Live demo:** _[isi URL kalau sudah deploy]_ · **Demo login:** _[akun demo]_
-
-![Dashboard](docs/screenshots/dashboard.png)
-
 ## Features
 
 _[BAGIAN INI YANG PERLU KAMU ISI]_
