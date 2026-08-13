@@ -11,7 +11,12 @@ scoring **84.47% acceptance** on a Likert scale.
 
 ## Features
 
-_[BAGIAN INI YANG PERLU KAMU ISI]_
+- Pengelolaan data Anggota
+- Pengelolaan Keuangan
+- Fitur Terintegrasi data kas dengan Anggota
+- fitur penyimpanan dokumentasi media via google drive
+- halaman showcase yang terintegrasi dengan media dokumentasi
+- halaman login
 
 ## Tech stack
 
