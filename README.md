@@ -63,10 +63,6 @@ Optional packages for caching and rate limiting are loaded lazily. If they
 are not installed the server still starts with those features disabled
 rather than crashing on boot.
 
-## Running locally
-
-_[isi dari INSTALLATION_GUIDE.md — ringkas jadi 4–6 langkah]_
-
 ## Project structure
 
     hmti-backend/    NestJS API, Prisma schema and migrations
