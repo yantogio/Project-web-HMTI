@@ -32,7 +32,7 @@ Tunggu sampai muncul `✓ built in ...s`. Hasilnya ada di folder
 ## LANGKAH 2 — Masuk ke VPS dan cari tahu posisi file kamu 🖥️
 
 ```bash
-ssh root@163.61.58.127
+ssh <user>@<VPS_IP>
 ```
 
 (ganti `root` dengan username kamu kalau bukan root)
@@ -140,10 +140,10 @@ jalankan `pm2 list` dan `pm2 restart <nama-proses>`.
 
 ```bash
 cd "c:\PROJECT WEB HMTI\hmti-frontend"
-scp -r dist/* root@163.61.58.127:/var/www/hmti/dist/
+scp -r dist/* <user>@<VPS_IP>:/var/www/hmti/dist/
 ```
 
-Sesuaikan `root@` dan `/var/www/hmti/dist` dengan hasil Langkah 2a.
+Sesuaikan `<user>@` dan `/var/www/hmti/dist` dengan hasil Langkah 2a.
 
 > Alternatif kalau `scp` terasa ribet: pakai **WinSCP** (aplikasi gratis) —
 > login ke VPS, lalu drag-and-drop isi folder `dist` dari laptop ke
@@ -153,13 +153,13 @@ Sesuaikan `root@` dan `/var/www/hmti/dist` dengan hasil Langkah 2a.
 
 ## LANGKAH 5 — Tes dari browser 💻
 
-1. Buka `http://163.61.58.127` di browser.
+1. Buka `http://<VPS_IP>` di browser.
 2. Tekan `Ctrl+Shift+R` (hard refresh, membuang cache file lama).
 3. Buka DevTools (`F12`) → tab **Network**.
 4. Refresh halaman. Perhatikan request-nya:
-   - ✅ Benar: request menuju `http://163.61.58.127/api/members` dengan
+   - ✅ Benar: request menuju `http://<VPS_IP>/api/members` dengan
      status **200**, dan data pengurus/showcase muncul di halaman.
-   - ❌ Masih menuju `...163.61.58.127:3000/...` → yang ter-upload masih
+   - ❌ Masih menuju `...<VPS_IP>:3000/...` → yang ter-upload masih
      build lama. Ulangi Langkah 1 dan 4, lalu hard refresh lagi.
 5. Coba login dan buka halaman Anggota / Keuangan — semua harus termuat.
 
@@ -196,7 +196,7 @@ curl -i http://localhost/api/members    # 🖥️ dari VPS: harus tetap 200
 ```
 
 Dan dari browser laptop: situs harus tetap normal, tapi
-`http://163.61.58.127:3000/members` harus **tidak bisa diakses lagi** —
+`http://<VPS_IP>:3000/members` harus **tidak bisa diakses lagi** —
 itu tandanya backend kamu sekarang aman di belakang Nginx.
 
 ---
