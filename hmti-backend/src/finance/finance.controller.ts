@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Query, Res, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { FinanceConfigService } from './finance-config.service';
 import { DuesService } from './dues.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
