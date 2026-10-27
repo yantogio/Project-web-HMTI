@@ -84,8 +84,10 @@ export class MembersController {
     res.send(buffer);
   }
 
-  // Import anggota massal dari file Excel
+  // Import anggota massal dari file Excel — hanya pengurus (sejajar POST /members)
   @Post('import')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ketum', 'sekretaris', 'bendahara')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
   async importMembers(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
